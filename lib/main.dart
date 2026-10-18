@@ -299,7 +299,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     if (!isConnected) {
       setState(() => isConnecting = true);
       
-      // Initialize V2ray instance
       flutterV2ray = FlutterV2ray(
         onStatusChanged: (status) {
           if (mounted) {
@@ -312,7 +311,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         },
       );
 
-      // Permission ကို Instance ကနေ တောင်းမယ်
       bool permission = await flutterV2ray!.requestPermission();
       
       if (!permission) {
@@ -323,14 +321,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       await flutterV2ray!.initializeV2Ray();
       
-      // Error မတက်စေရန် V2RayURL (R အကြီး) သို့ ပြောင်းထားပါတယ်
-      V2RayURL parser = V2RayURL(link: widget.selectedServer.vlessLink);
+      // ဒီနေရာမှာ V2rayURL (r အသေး) လို့ ပြင်ထားပါတယ်
+      V2rayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
       
       await flutterV2ray!.startV2Ray(
         remark: "CX VPN",
         config: parser.getFullConfiguration(),
         proxyOnly: false,
-        // bypassLAN: true, // Error တက်နေလို့ ဖြုတ်ပစ်ထားပါတယ်
       );
 
     } else {
