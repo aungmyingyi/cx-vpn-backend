@@ -22,6 +22,7 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
+        version: 'latest' # <--- အသစ်ဆုံး Version ကို သုံးခိုင်းခြင်း
         
     - name: Create missing platform folders
       run: flutter create --project-name cx_vpn .
