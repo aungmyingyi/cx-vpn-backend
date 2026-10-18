@@ -23,8 +23,35 @@ jobs:
       with:
         channel: 'stable'
         
+    # ဒီအဆင့်က android folder ကို အလိုအလျောက် သွားဆောက်ပေးမှာပါ
     - name: Create missing platform folders
-      run: flutter create .
+      run: flutter create --project-name cx_vpn .
+
+    # ဒီအဆင့်က VPN အတွက် လိုအပ်တဲ့ Permission တွေကို အလိုအလျောက် ထည့်ပေးမှာပါ
+    - name: Inject VPN Service into AndroidManifest
+      run: |
+        python3 - <<'EOF'
+        import re
+        file_path = 'android/app/src/main/AndroidManifest.xml'
+        with open(file_path, 'r') as f:
+            content = f.read()
+        
+        service_xml = '''
+            <service
+                android:name="com.github.xiaokang.flutter_v2ray.v2ray.V2rayService"
+                android:permission="android.permission.BIND_VPN_SERVICE"
+                android:exported="false">
+                <intent-filter>
+                    <action android:name="android.net.VpnService"/>
+                </intent-filter>
+            </service>
+        '''
+        
+        if 'V2rayService' not in content:
+            content = content.replace('</application>', service_xml + '</application>')
+            with open(file_path, 'w') as f:
+                f.write(content)
+        EOF
       
     - name: Install dependencies
       run: flutter pub get
