@@ -26,14 +26,14 @@ jobs:
         version: 'latest'
         cache: true
 
-    # Android Folder မရှိရင် အလိုအလျောက် ဖန်တီးမယ်
+    # ဒီအဆင့်က Android Folder မရှိရင် အလိုအလျောက် ဖန်တီးပေးသွားမှာပါ
     - name: Create Android folder if missing
       run: |
         if [ ! -d "android" ]; then
           flutter create --project-name cx_vpn --platforms=android .
         fi
 
-    # Permission တွေကို AndroidManifest.xml ထဲကို အလိုအလျောက် ထည့်ပေးမယ်
+    # ဒီအဆင့်က Permission တွေကို အလိုအလျောက် ထည့်ပေးသွားမှာပါ
     - name: Add Permissions to AndroidManifest
       run: |
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n\n    <application/' android/app/src/main/AndroidManifest.xml
@@ -41,7 +41,6 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
 
-    # APK ၃ ခု ထုတ်မယ်
     - name: Build APKs (split per ABI)
       run: flutter build apk --release --split-per-abi
 
