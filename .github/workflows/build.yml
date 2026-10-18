@@ -23,7 +23,7 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
-        flutter-version: '3.22.0' 
+        # Version သတ်မှတ်မထားတော့ဘဲ Stable နောက်ဆုံးထွက်ကို အသုံးပြုစေမယ်
         cache: true
 
     - name: Create Android folder (v2)
@@ -31,30 +31,39 @@ jobs:
         rm -rf android
         flutter create --project-name cx_vpn --platforms=android .
 
-    - name: Add Permissions to AndroidManifest
+    - name: Configure AndroidManifest (Permissions, VPN Service & Ads)
       run: |
-        sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n\n    <application/' android/app/src/main/AndroidManifest.xml
+        MANIFEST="android/app/src/main/AndroidManifest.xml"
+        
+        # 1. Permissions တွေ ထည့်မယ်
+        sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" \/>\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" \/>\n\n    <application/' $MANIFEST
 
-    # ✅ SDK Version တွေကို အတင်း ပြောင်းမယ် (Start.io SDK အတွက်)
-    - name: Fix Android SDK Versions
+        # 2. VPN Service နဲ့ Start.io App ID ကို ထည့်မယ် (application အပိတ် </application> ရှေ့မှာ)
+        sed -i 's|</application>|    <service android:name="com.flutter_v2ray_client.V2RayVpnService" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="false" android:foregroundServiceType="specialUse">\n            <intent-filter>\n                <action android:name="android.net.VpnService"/>\n            </intent-filter>\n        </service>\n        <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="209308326" \/>\n        <meta-data android:name="com.startapp.sdk.RETURN_ADS_ENABLED" android:value="false" \/>\n    <\/application>|' $MANIFEST
+
+    - name: Fix Android SDK and NDK Versions
       run: |
+        # build.gradle ဖိုင်ထဲက SDK Version တွေကို ပြောင်းမယ်
         sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
         sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/' android/app/build.gradle
         sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 36/' android/app/build.gradle
-        
-    # ✅ Gradle Plugin ကို အသစ်ဆုံး ပြောင်းမယ် (SDK 36 ကို ထောက်ပံ့ဖို့)
-    - name: Fix Android Gradle Plugin
-      run: |
-        sed -i 's/com.android.application" version ".*"/com.android.application" version "8.2.0"/' android/settings.gradle
-        sed -i 's/com.android.library" version ".*"/com.android.library" version "8.2.0"/' android/settings.gradle
+        # NDK Version ကို သတ်မှတ်မယ်
+        sed -i 's/ndkVersion flutter.ndkVersion/ndkVersion "27.0.12077973"/' android/app/build.gradle
 
-    # ✅ AAPT2 version ကို SDK 36 နဲ့ ကိုက်ညီအောင် သတ်မှတ်ခြင်း
+    - name: Fix Android Gradle Plugin (AGP)
+      run: |
+        # SDK 36 ကို ထောက်ပံ့ဖို့ AGP ကို 8.5.0 ကို ပြောင်းမယ်
+        sed -i 's/com.android.application" version ".*"/com.android.application" version "8.5.0"/' android/settings.gradle
+        sed -i 's/com.android.library" version ".*"/com.android.library" version "8.5.0"/' android/settings.gradle
+
     - name: Fix AAPT2 Version for SDK 36
       run: |
         echo "android.aapt2Version=8.6.1-11315950" >> android/gradle.properties
 
-    - name: Install dependencies
-      run: flutter pub get
+    - name: Clean and Install dependencies
+      run: |
+        flutter clean
+        flutter pub get
 
     - name: Build APKs (split per ABI)
       run: flutter build apk --release --split-per-abi
