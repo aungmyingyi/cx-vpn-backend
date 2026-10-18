@@ -11,7 +11,7 @@ void main() async {
   
   // Unity Ads ကို စတင် Initialize လုပ်မယ်
   await UnityAds.init(
-    gameId: '800403175', // သင့် Game ID (ပုံထဲကအတိုင်း)
+    gameId: '800403175', // သင့် Game ID
     testMode: true,     // စမ်းသပ်နေတဲ့အတွက် True ထားပါ။ App Store တင်မယ်ဆိုရင် False ပြောင်းပါ
   );
   
@@ -451,28 +451,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // ✅ ပြင်ဆင်ပြီးသား Unity Ad Function
+  // ✅ ပြင်ဆင်ပြီးသား Unity Ad Function (listener ကို ဖြုတ်ထားပါတယ်)
   Future<void> _showUnityAd() async {
     bool adCompleted = false;
 
     UnityAds.showVideoAd(
-      placementId: 'BP_Rewarded_Android', 
-      listener: (status, error) {
-        if (status == UnityAdFinishStatus.completed) {
-          adCompleted = true;
-          adsWatched++; 
-        } else if (status == UnityAdFinishStatus.skipped) {
-          // အလယ်မှာ ထွက်သွားရင် (Skip လုပ်ရင်) ဘာမှ မလုပ်ဘူး
-        } else if (status == UnityAdFinishStatus.failed) {
-          // Error တက်ရင် အသိပေးမယ်
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ad failed to load: $error')),
-          );
-        }
+      placementId: 'BP_Rewarded_Android',
+      onComplete: (placementId) {
+        adCompleted = true;
+        adsWatched++;
+      },
+      onClick: (placementId) {},
+      onFailed: (placementId, error, message) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ad failed: $error')),
+        );
+      },
+      onSkipped: (placementId) {
+        // Skip လုပ်ရင် ဘာမှ မလုပ်ဘူး
+        adCompleted = false;
       },
     );
 
-    // ကြော်ငြာ ပြီးတဲ့အထိ (ဒါမှမဟုတ် ထွက်သွားတဲ့အထိ) စောင့်မယ်
+    // ကြော်ငြာ ပြီးတဲ့အထိ စောင့်မယ်
     while (!adCompleted) {
       await Future.delayed(const Duration(milliseconds: 500));
       if (!isConnecting) break;
