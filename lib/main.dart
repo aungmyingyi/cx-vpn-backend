@@ -8,10 +8,6 @@ import 'package:startapp_sdk/startapp.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Start.io ကို စတင် Initialize လုပ်မယ်
-  StartAppSdk().init();
-  
   runApp(const CXVpnApp());
 }
 
@@ -306,9 +302,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int totalUpload = 0;
   int ping = 0;
 
+  // --- StartApp Sdk Variables ---
+  final StartAppSdk startAppSdk = StartAppSdk();
+  StartAppInterstitialAd? interstitialAd;
+
   // --- ကြော်ငြာနဲ့ အချိန်စနစ် ---
   int adsWatched = 0; 
-  int freeTimeRemaining = 0; // ကျန်ရှိတဲ့ အချိန် (စက္ကန့်)
+  int freeTimeRemaining = 0; 
   Timer? _timer;
 
   @override
@@ -316,6 +316,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     super.initState();
     _spin = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
     _glitch = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+
+    // Start.io အတွက် စမ်းသပ်ကြော်ငြာ ဖွင့်ထားမယ်
+    startAppSdk.setTestAdsEnabled(true);
 
     v2ray = V2ray(
       onStatusChanged: (status) {
@@ -349,7 +352,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         if (freeTimeRemaining > 0) {
           freeTimeRemaining--;
         } else {
-          // အချိန်ကုန်သွားရင် ကွန်နက်ရှင် ဖြတ်မယ်
           _timer?.cancel();
           v2ray.stopV2Ray();
           _showWatchAdDialog(); 
@@ -448,34 +450,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // Start.io Ad Function
+  // Start.io Ad Function (Version အသစ်အတိုင်း)
   Future<void> _showStartAppAd() async {
-    bool adCompleted = false;
-
     try {
-      // StartApp Interstitial Ad ကို ပြမယ်
-      StartAppSdk().showInterstitialAd(
-        onAdNotShown: (error) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ad failed: $error')),
-          );
-        },
-        onAdShown: () {},
+      interstitialAd = await startAppSdk.loadInterstitialAd(
         onAdHidden: () {
-          adCompleted = true;
-          adsWatched++;
+          if (mounted) {
+            setState(() {
+              adsWatched++;
+            });
+          }
         },
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ad error: $e')),
-      );
-    }
 
-    // ကြော်ငြာ ပြီးတဲ့အထိ စောင့်မယ်
-    while (!adCompleted) {
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (!isConnecting) break;
+      if (interstitialAd != null) {
+        final shown = await interstitialAd!.show();
+        if (shown) {
+          interstitialAd = null;
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No ad available. Please try again.')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ad error: $e')),
+        );
+      }
     }
   }
 
