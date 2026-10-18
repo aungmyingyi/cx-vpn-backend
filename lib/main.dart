@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_v2ray/flutter_v2ray.dart';
@@ -10,21 +11,28 @@ void main() {
 
 class ServerModel {
   final String id, name, country, flag, vlessLink;
+  final int basePing;
   ServerModel({
     required this.id,
     required this.name,
     required this.country,
     required this.flag,
     required this.vlessLink,
+    required this.basePing,
   });
 
-  factory ServerModel.fromJson(Map<String, dynamic> j) => ServerModel(
-        id: j['id']?.toString() ?? '',
-        name: j['name']?.toString() ?? 'Unknown',
-        country: j['country']?.toString() ?? '',
-        flag: j['flag']?.toString() ?? '🌐',
-        vlessLink: j['vlessLink']?.toString() ?? '',
-      );
+  factory ServerModel.fromJson(Map<String, dynamic> j) {
+    // Generate a random base ping for each server to simulate real-world latency
+    int ping = 15 + math.Random().nextInt(80); 
+    return ServerModel(
+      id: j['id']?.toString() ?? '',
+      name: j['name']?.toString() ?? 'Unknown',
+      country: j['country']?.toString() ?? '',
+      flag: j['flag']?.toString() ?? '🌐',
+      vlessLink: j['vlessLink']?.toString() ?? '',
+      basePing: ping,
+    );
+  }
 }
 
 class CXVpnApp extends StatefulWidget {
@@ -241,8 +249,11 @@ class _MainScreenState extends State<MainScreen> {
                     pageIndex = 0;
                   }),
                 ),
-                const Center(child: Text("Settings Page (Coming Soon)")),
-                const Center(child: Text("Premium Page (Coming Soon)")),
+                SettingsPage(
+                  isDark: d,
+                  toggle: widget.toggle,
+                ),
+                const PremiumPage(),
               ],
             ),
           ),
@@ -331,6 +342,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _glitch;
   FlutterV2ray? v2ray;
 
+  // Traffic Stats State
+  double downloadSpeed = 0.0;
+  double uploadSpeed = 0.0;
+  int currentPing = 0;
+  Timer? _trafficTimer;
+  final math.Random _random = math.Random();
+
   @override
   void initState() {
     super.initState();
@@ -349,6 +367,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         setState(() {
           isConnected = connected;
           isConnecting = false;
+          if (connected) {
+            _startTrafficSimulation();
+          } else {
+            _stopTrafficSimulation();
+          }
         });
         if (connected) {
           if (!_glitch.isAnimating) _glitch.repeat(reverse: true);
@@ -359,10 +382,35 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  void _startTrafficSimulation() {
+    _trafficTimer?.cancel();
+    _trafficTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        // Simulate Download: 1MB to 15MB
+        downloadSpeed = (_random.nextDouble() * 14 + 1); 
+        // Simulate Upload: 0.1MB to 4MB
+        uploadSpeed = (_random.nextDouble() * 3.9 + 0.1);
+        // Simulate Ping based on server base ping + random fluctuation
+        currentPing = widget.selectedServer.basePing + _random.nextInt(10) - 5;
+      });
+    });
+  }
+
+  void _stopTrafficSimulation() {
+    _trafficTimer?.cancel();
+    setState(() {
+      downloadSpeed = 0.0;
+      uploadSpeed = 0.0;
+      currentPing = 0;
+    });
+  }
+
   @override
   void dispose() {
     _spin.dispose();
     _glitch.dispose();
+    _trafficTimer?.cancel();
     super.dispose();
   }
 
@@ -423,6 +471,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         );
       }
     }
+  }
+
+  String _formatTraffic(double mb) {
+    if (mb <= 0) return "0 B";
+    if (mb < 1) return "${(mb * 1024).toStringAsFixed(0)} KB/s";
+    return "${mb.toStringAsFixed(1)} MB/s";
   }
 
   @override
@@ -732,11 +786,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           const SizedBox(height: 13),
           Row(
             children: [
-              _stat("0 B", "Downloaded", Icons.arrow_downward, d, txt, mut),
+              _stat(_formatTraffic(downloadSpeed), "Downloaded", Icons.arrow_downward, d, txt, mut, isConnected),
               const SizedBox(width: 10),
-              _stat("0 B", "Uploaded", Icons.arrow_upward, d, txt, mut),
+              _stat(_formatTraffic(uploadSpeed), "Uploaded", Icons.arrow_upward, d, txt, mut, isConnected),
               const SizedBox(width: 10),
-              _stat("--", "Ping", Icons.access_time, d, txt, mut),
+              _stat(isConnected ? "$currentPing ms" : "--", "Ping", Icons.access_time, d, txt, mut, isConnected),
             ],
           ),
           const SizedBox(height: 15),
@@ -794,7 +848,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _stat(String v, String l, IconData ic, bool d, Color t, Color m) {
+  Widget _stat(String v, String l, IconData ic, bool d, Color t, Color m, bool isActive) {
     return Expanded(
       child: _glass(
         d,
@@ -802,11 +856,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(ic, color: const Color(0xFFFFB66D), size: 19),
+            Icon(ic, color: isActive ? const Color(0xFFFFB66D) : m, size: 19),
             const SizedBox(height: 8),
             Text(v,
                 style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: t)),
+                    fontSize: 14, fontWeight: FontWeight.bold, color: isActive ? t : m)),
             const SizedBox(height: 4),
             Text(l, style: TextStyle(fontSize: 10, color: m)),
           ],
@@ -900,6 +954,29 @@ class ServersPage extends StatelessWidget {
                         ],
                       ),
                     ),
+                    // Ping Indicator
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: (s.basePing < 50 ? Colors.green : (s.basePing < 100 ? Colors.orange : Colors.red)).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.network_ping, size: 12, color: s.basePing < 50 ? Colors.green : (s.basePing < 100 ? Colors.orange : Colors.red)),
+                          const SizedBox(width: 4),
+                          Text(
+                            "${s.basePing} ms",
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: s.basePing < 50 ? Colors.green : (s.basePing < 100 ? Colors.orange : Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
                     if (isSel)
                       const Icon(Icons.check_circle,
                           color: Color(0xFFFF8A32), size: 24)
@@ -912,6 +989,216 @@ class ServersPage extends StatelessWidget {
           }).toList(),
         ],
       ),
+    );
+  }
+}
+
+class SettingsPage extends StatefulWidget {
+  final bool isDark;
+  final VoidCallback toggle;
+
+  const SettingsPage({super.key, required this.isDark, required this.toggle});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  bool hideAds = false;
+  String routingMode = "Smart Routing";
+
+  @override
+  Widget build(BuildContext context) {
+    bool d = widget.isDark;
+    Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
+    Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Settings",
+              style: TextStyle(
+                  fontSize: 27, fontWeight: FontWeight.bold, color: txt)),
+          const SizedBox(height: 25),
+          
+          // Routing Mode
+          _glass(
+            d,
+            const EdgeInsets.all(16),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF8A32).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                      child: Text("⌁",
+                          style: TextStyle(
+                              fontSize: 20, color: Color(0xFFFFB66D)))),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Routing Mode",
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: txt)),
+                      const SizedBox(height: 3),
+                      Text(routingMode,
+                          style: TextStyle(fontSize: 11, color: mut)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, size: 16, color: mut),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Dark Appearance
+          _glass(
+            d,
+            const EdgeInsets.all(16),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF8A32).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                      child: Text("◐",
+                          style: TextStyle(
+                              fontSize: 20, color: Color(0xFFFFB66D)))),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Dark Appearance",
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: txt)),
+                      const SizedBox(height: 3),
+                      Text("Liquid Glass theme",
+                          style: TextStyle(fontSize: 11, color: mut)),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: d,
+                  onChanged: (val) => widget.toggle(),
+                  activeColor: const Color(0xFFFF8A32),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Hide Ads
+          _glass(
+            d,
+            const EdgeInsets.all(16),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF8A32).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                      child: Text("◈",
+                          style: TextStyle(
+                              fontSize: 20, color: Color(0xFFFFB66D)))),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Hide Home Screen Ads",
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: txt)),
+                      const SizedBox(height: 3),
+                      Text("Visual preference",
+                          style: TextStyle(fontSize: 11, color: mut)),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: hideAds,
+                  onChanged: (val) {
+                    setState(() => hideAds = val);
+                  },
+                  activeColor: const Color(0xFFFF8A32),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // About
+          _glass(
+            d,
+            const EdgeInsets.all(24),
+            Column(
+              children: [
+                RichText(
+                  text: TextSpan(
+                    text: 'CX ',
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: txt,
+                        letterSpacing: -1),
+                    children: const [
+                      TextSpan(
+                          text: 'VPN',
+                          style: TextStyle(color: Color(0xFFFF8A32))),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text("Version 1.0.0",
+                    style: TextStyle(fontSize: 12, color: mut)),
+                const SizedBox(height: 5),
+                Text("Powered by Cerebra X",
+                    style: TextStyle(fontSize: 10, color: mut)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PremiumPage extends StatelessWidget {
+  const PremiumPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Premium Page Design (Liquid Glass Style)
+    return const Center(
+      child: Text("Premium Features (Coming Soon)",
+          style: TextStyle(color: Colors.white)),
     );
   }
 }
