@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-// ခေတ်အသစ်ဆုံး package ကို ခေါ်သုံးထားပါတယ်
 import 'package:flutter_v2ray_client/flutter_v2ray.dart'; 
 
 void main() {
@@ -279,12 +278,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _spin;
   late AnimationController _glitch;
   
-  // V2Ray Client Instance
   late final V2ray v2ray;
   
-  // ဒီနေရာမှာ တကယ့် Core ကနေ ရလာတဲ့ Data တွေကို သိမ်းမယ်
-  int downloadSpeed = 0; // Bytes per second
-  int uploadSpeed = 0;   // Bytes per second
+  int downloadSpeed = 0;
+  int uploadSpeed = 0;
   int totalDownload = 0;
   int totalUpload = 0;
   int ping = 0;
@@ -301,7 +298,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         setState(() {
           isConnected = status.state == 'CONNECTED';
           isConnecting = false;
-          // တကယ့် Speed နဲ့ Traffic တွေကို Core ကနေ တိုက်ရိုက်ယူမယ်
           downloadSpeed = status.downloadSpeed ?? 0;
           uploadSpeed = status.uploadSpeed ?? 0;
           totalDownload = status.download ?? 0;
@@ -317,7 +313,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  // ချိတ်ဆက်ထားတဲ့ Server ရဲ့ တကယ့် Ping ကို တွက်မယ်
   Future<void> _fetchPing() async {
     try {
       final delay = await v2ray.getConnectedServerDelay();
@@ -343,7 +338,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     setState(() => isConnecting = true);
 
     try {
-      // Client ကို အရင် Initialize လုပ်ရမယ်
       await v2ray.initialize(
         notificationIconResourceType: "mipmap",
         notificationIconResourceName: "ic_launcher",
@@ -361,7 +355,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final parser = V2ray.parseFromURL(link);
 
       await v2ray.startV2Ray(
-        remark: parser.remark,
+        remark: parser.remark.isNotEmpty ? parser.remark : "CX VPN",
         config: parser.getFullConfiguration(),
         proxyOnly: false,
       );
@@ -374,7 +368,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // Bytes ကနေ KB/s, MB/s ပြောင်းပေးမယ့် Function
   String _formatSpeed(int bytes) {
     if (bytes <= 0) return "0 B/s";
     if (bytes < 1024) return "$bytes B/s";
