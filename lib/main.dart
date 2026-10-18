@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:flutter_v2ray/flutter_v2ray.dart';
 
 void main() {
   runApp(const CXVpnApp());
 }
 
+// ==========================================
+// SERVER MODEL
+// ==========================================
+class ServerModel {
+  final String id;
+  final String name;
+  final String country;
+  final String flag;
+  final String vlessLink;
+
+  ServerModel({
+    required this.id,
+    required this.name,
+    required this.country,
+    required this.flag,
+    required this.vlessLink,
+  });
+}
+
+// ==========================================
+// MAIN APP
+// ==========================================
 class CXVpnApp extends StatefulWidget {
   const CXVpnApp({super.key});
 
@@ -44,6 +67,9 @@ class _CXVpnAppState extends State<CXVpnApp> {
   }
 }
 
+// ==========================================
+// MAIN SCREEN (Navigation & State)
+// ==========================================
 class MainScreen extends StatefulWidget {
   final bool isDarkMode;
   final VoidCallback toggleTheme;
@@ -59,11 +85,47 @@ class _MainScreenState extends State<MainScreen> {
   bool isLoggedIn = false;
   int currentPageIndex = 0; 
 
+  // ဒီနေရာမှာ မင်း ပေးလိုက်တဲ့ Japan Link ကို ထည့်ပေးထားပါတယ်
+  final List<ServerModel> servers = [
+    ServerModel(
+      id: '1',
+      name: 'Singapore 1',
+      country: 'Asia Pacific',
+      flag: '🇸🇬',
+      vlessLink: "vless://082f5694-9019-4110-b67b-8125dbb9bab8@104.19.214.15:2087?type=ws&security=tls&path=%2F#CX_VPN_Server1",
+    ),
+    ServerModel(
+      id: '2',
+      name: 'Japan 1',
+      country: 'Asia Pacific',
+      flag: '🇯🇵',
+      vlessLink: "vless://e13cf851-b4fd-413b-8d49-146e6eb8e5d4@platform115.golnamakcert.top:80?path=%2Fplatform115&security=&encryption=none&host=platform115.halalkhor.info&type=ws&sni=platform115.halalkhor.info#%F0%9F%8F%B3%5Bwww.v2nodes.com%5D%20vless-",
+    ),
+    ServerModel(
+      id: '3',
+      name: 'United States 1',
+      country: 'North America',
+      flag: '🇺🇸',
+      vlessLink: "vless://e4b3c2a1-1234-5678-9abc-def012345678@104.19.214.15:2087?type=ws&security=tls&path=%2F#CX_VPN_Server3",
+    ),
+  ];
+
+  late ServerModel selectedServer;
+
   @override
   void initState() {
     super.initState();
+    selectedServer = servers[0];
+
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) setState(() => isSplash = false);
+    });
+  }
+
+  void selectServer(ServerModel server) {
+    setState(() {
+      selectedServer = server;
+      currentPageIndex = 0; 
     });
   }
 
@@ -100,25 +162,30 @@ class _MainScreenState extends State<MainScreen> {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Sky Background
-          Positioned.fill(
-            child: SkyBackground(isDark: isDark),
-          ),
+          Positioned.fill(child: SkyBackground(isDark: isDark)),
           
-          // Main Content
           SafeArea(
             child: IndexedStack(
               index: currentPageIndex,
               children: [
-                HomePage(isDark: isDark, toggleTheme: widget.toggleTheme),
-                const Center(child: Text("Servers Page (Coming Soon)")),
+                HomePage(
+                  isDark: isDark, 
+                  toggleTheme: widget.toggleTheme,
+                  selectedServer: selectedServer,
+                  onNavigateToServers: () => setState(() => currentPageIndex = 1),
+                ),
+                ServersPage(
+                  isDark: isDark,
+                  servers: servers,
+                  selectedServer: selectedServer,
+                  onSelectServer: selectServer,
+                ),
                 const Center(child: Text("Settings Page (Coming Soon)")),
                 const Center(child: Text("Premium Page (Coming Soon)")),
               ],
             ),
           ),
 
-          // Bottom Navigation
           Positioned(
             bottom: 20,
             left: 20,
@@ -167,12 +234,21 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 // ==========================================
-// HOME PAGE
+// HOME PAGE (VPN LOGIC)
 // ==========================================
 class HomePage extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggleTheme;
-  const HomePage({super.key, required this.isDark, required this.toggleTheme});
+  final ServerModel selectedServer;
+  final VoidCallback onNavigateToServers;
+
+  const HomePage({
+    super.key, 
+    required this.isDark, 
+    required this.toggleTheme,
+    required this.selectedServer,
+    required this.onNavigateToServers,
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -180,14 +256,25 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   bool isConnected = false;
+  bool isConnecting = false;
   late AnimationController _spinController;
   late AnimationController _glitchController;
+  late FlutterV2ray flutterV2ray;
 
   @override
   void initState() {
     super.initState();
     _spinController = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
     _glitchController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
+    
+    flutterV2ray = FlutterV2ray(onStatusChanged: (status) {
+      if (mounted) {
+        setState(() {
+          isConnected = status.state == 'CONNECTED';
+          isConnecting = false;
+        });
+      }
+    });
   }
 
   @override
@@ -195,6 +282,48 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _spinController.dispose();
     _glitchController.dispose();
     super.dispose();
+  }
+
+  Future<void> toggleVPN() async {
+    if (isConnecting) return;
+
+    if (!isConnected) {
+      setState(() => isConnecting = true);
+      
+      final permission = await FlutterV2ray.requestPermission();
+      if (!permission) {
+        setState(() => isConnecting = false);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("VPN Permission Denied!")));
+        return;
+      }
+
+      FlutterV2ray v2ray = FlutterV2ray(
+        onStatusChanged: (status) {
+          if (status.state == 'CONNECTED') {
+            setState(() { isConnected = true; isConnecting = false; });
+          } else if (status.state == 'DISCONNECTED') {
+            setState(() { isConnected = false; isConnecting = false; });
+          }
+        },
+      );
+
+      await v2ray.initializeV2Ray();
+      
+      // ဒီနေရာမှာ ရွေးချယ်ထားတဲ့ ဆာဗာရဲ့ Link ကို သုံးထားပါတယ်
+      V2RayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
+      await v2ray.startV2Ray(
+        remark: "CX VPN",
+        config: parser.getFullConfiguration(),
+        proxyOnly: false,
+        bypassLAN: true,
+        blockedApps: [],
+        bypassApps: [],
+      );
+
+    } else {
+      await flutterV2ray.stopV2Ray();
+      setState(() { isConnected = false; });
+    }
   }
 
   @override
@@ -269,7 +398,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ],
           ),
           
-          // Connection Area (အလယ်ကျအောင် Center သုံးထားပါတယ်)
+          // Connection Area
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 40),
             child: Center(
@@ -278,11 +407,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 children: [
                   RepaintBoundary(
                     child: GestureDetector(
-                      onTap: () => setState(() => isConnected = !isConnected),
+                      onTap: toggleVPN,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // GLITCH EFFECT LAYERS
                           if (isConnected) ...[
                             AnimatedBuilder(
                               animation: _glitchController,
@@ -316,7 +444,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ],
                           
-                          // MAIN BUTTON
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
                             width: 150, height: 150,
@@ -341,19 +468,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               ]
                             ),
                             child: Center(
-                              child: Container(
-                                width: 110, height: 110,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(26),
-                                  color: isConnected 
-                                      ? connectedColor.withOpacity(0.1) 
-                                      : (widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.8)),
-                                  border: Border.all(
-                                    color: isConnected ? connectedColor.withOpacity(0.4) : (widget.isDark ? Colors.white.withOpacity(0.2) : Colors.white)
-                                  ),
-                                ),
-                                child: Icon(Icons.power_settings_new, size: 42, color: isConnected ? connectedColor : textColor),
-                              ),
+                              child: isConnecting 
+                                ? const CircularProgressIndicator(color: Color(0xFFFF8A32))
+                                : Icon(Icons.power_settings_new, size: 42, color: isConnected ? connectedColor : textColor),
                             ),
                           ),
                         ],
@@ -362,7 +479,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 25),
                   Text(
-                    isConnected ? "CONNECTED" : "NOT CONNECTED",
+                    isConnecting ? "CONNECTING..." : (isConnected ? "CONNECTED" : "NOT CONNECTED"),
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 2, color: isConnected ? connectedColor : textColor),
                   ),
                   const SizedBox(height: 7),
@@ -401,36 +518,39 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
 
           // Server Card
-          RepaintBoundary(
-            child: GlassContainer(
-              isDark: widget.isDark,
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 45, height: 45,
-                    decoration: BoxDecoration(
-                      color: widget.isDark ? Colors.white.withOpacity(0.1) : Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: widget.isDark ? Colors.white.withOpacity(0.1) : Colors.black12),
+          GestureDetector(
+            onTap: widget.onNavigateToServers,
+            child: RepaintBoundary(
+              child: GlassContainer(
+                isDark: widget.isDark,
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 45, height: 45,
+                      decoration: BoxDecoration(
+                        color: widget.isDark ? Colors.white.withOpacity(0.1) : Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: widget.isDark ? Colors.white.withOpacity(0.1) : Colors.black12),
+                      ),
+                      child: Center(child: Text(widget.selectedServer.flag, style: const TextStyle(fontSize: 22))),
                     ),
-                    child: const Icon(Icons.public, color: Color(0xFFFFB66D)),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("YOUR LOCATION", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1, color: mutedColor)),
-                        const SizedBox(height: 5),
-                        Text("Auto Location", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
-                        const SizedBox(height: 3),
-                        Text("Select a server location", style: TextStyle(fontSize: 11, color: mutedColor)),
-                      ],
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("YOUR LOCATION", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1, color: mutedColor)),
+                          const SizedBox(height: 5),
+                          Text(widget.selectedServer.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                          const SizedBox(height: 3),
+                          Text(widget.selectedServer.country, style: TextStyle(fontSize: 11, color: mutedColor)),
+                        ],
+                      ),
                     ),
-                  ),
-                  Icon(Icons.arrow_forward_ios, size: 16, color: mutedColor),
-                ],
+                    Icon(Icons.arrow_forward_ios, size: 16, color: mutedColor),
+                  ],
+                ),
               ),
             ),
           ),
@@ -478,35 +598,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
             ),
           ),
-
-          const SizedBox(height: 30),
-          
-          // Explore
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("Explore", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textColor)),
-              Text("YOUR VPN", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: mutedColor)),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Feature Grid
-          Row(
-            children: [
-              _buildFeatureCard("Routing Mode", "Customize traffic", Icons.alt_route, widget.isDark, textColor, mutedColor),
-              const SizedBox(width: 12),
-              _buildFeatureCard("Settings", "Personalize app", Icons.settings, widget.isDark, textColor, mutedColor),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildFeatureCard("Help Center", "Get assistance", Icons.help_outline, widget.isDark, textColor, mutedColor),
-              const SizedBox(width: 12),
-              _buildFeatureCard("Privacy", "Your protection", Icons.security, widget.isDark, textColor, mutedColor),
-            ],
-          ),
         ],
       ),
     );
@@ -532,39 +623,102 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       ),
     );
   }
+}
 
-  Widget _buildFeatureCard(String title, String subtitle, IconData icon, bool isDark, Color text, Color muted) {
-    return Expanded(
-      child: RepaintBoundary(
-        child: GlassContainer(
-          isDark: isDark,
-          padding: const EdgeInsets.all(17),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+// ==========================================
+// SERVERS PAGE
+// ==========================================
+class ServersPage extends StatelessWidget {
+  final bool isDark;
+  final List<ServerModel> servers;
+  final ServerModel selectedServer;
+  final Function(ServerModel) onSelectServer;
+
+  const ServersPage({
+    super.key, 
+    required this.isDark, 
+    required this.servers, 
+    required this.selectedServer,
+    required this.onSelectServer,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Color textColor = isDark ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
+    Color mutedColor = isDark ? const Color(0xFF929DB5) : const Color(0xFF65718A);
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withOpacity(0.07) : Colors.white,
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.13) : Colors.transparent),
-                ),
-                child: Icon(icon, color: const Color(0xFFFFB66D), size: 20),
-              ),
-              const SizedBox(height: 15),
-              Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: text)),
-              const SizedBox(height: 5),
-              Text(subtitle, style: TextStyle(fontSize: 10, color: muted)),
+              Text("Choose Server", style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, color: textColor)),
             ],
           ),
-        ),
+          const SizedBox(height: 5),
+          Text("Select a location for your connection.", style: TextStyle(fontSize: 12, color: mutedColor)),
+          const SizedBox(height: 25),
+
+          ...servers.map((server) {
+            bool isSelected = server.id == selectedServer.id;
+            return GestureDetector(
+              onTap: () => onSelectServer(server),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: isSelected 
+                      ? const Color(0xFFFF8A32).withOpacity(0.15)
+                      : (isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6)),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected 
+                        ? const Color(0xFFFF8A32) 
+                        : (isDark ? Colors.white.withOpacity(0.1) : Colors.black12),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 45, height: 45,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Center(child: Text(server.flag, style: const TextStyle(fontSize: 22))),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(server.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textColor)),
+                          const SizedBox(height: 4),
+                          Text(server.country, style: TextStyle(fontSize: 11, color: mutedColor)),
+                        ],
+                      ),
+                    ),
+                    if (isSelected) 
+                      const Icon(Icons.check_circle, color: Color(0xFFFF8A32), size: 24)
+                    else
+                      Icon(Icons.radio_button_unchecked, color: mutedColor, size: 24),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ],
       ),
     );
   }
 }
 
 // ==========================================
-// LOGIN SCREEN
+// LOGIN SCREEN (Unchanged)
 // ==========================================
 class LoginScreen extends StatelessWidget {
   final bool isDark;
@@ -682,7 +836,7 @@ class LoginScreen extends StatelessWidget {
 }
 
 // ==========================================
-// SKY BACKGROUND WITH CUSTOM PAINT LEAVES (SMOOTH)
+// SKY BACKGROUND & REUSABLE COMPONENTS
 // ==========================================
 class SkyBackground extends StatefulWidget {
   final bool isDark;
@@ -722,7 +876,6 @@ class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProvider
       ),
       child: Stack(
         children: [
-          // Sun & Moon
           Positioned(
             top: MediaQuery.of(context).size.height * 0.08,
             right: MediaQuery.of(context).size.width * 0.12,
@@ -741,8 +894,6 @@ class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProvider
               ),
             ),
           ),
-
-          // Falling Leaves via CustomPaint (Smooth)
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _leafController,
@@ -753,8 +904,6 @@ class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProvider
               },
             ),
           ),
-
-          // Tree Silhouette
           Positioned(
             bottom: -10, left: 0, right: 0,
             child: CustomPaint(
@@ -768,7 +917,6 @@ class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProvider
   }
 }
 
-// Custom Painter for Leaves
 class LeafPainter extends CustomPainter {
   final double progress;
   final bool isDark;
@@ -795,7 +943,6 @@ class LeafPainter extends CustomPainter {
       canvas.translate(x, y);
       canvas.rotate(currentProgress * math.pi * 2);
       
-      // Draw leaf shape
       Path path = Path();
       path.moveTo(0, 0);
       path.quadraticBezierTo(7, -7, 14, 0);
@@ -844,9 +991,6 @@ class TreePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-// ==========================================
-// REUSABLE GLASS COMPONENTS (Without BackdropFilter for performance & no white screen bug)
-// ==========================================
 class GlassContainer extends StatelessWidget {
   final Widget child;
   final bool isDark;
