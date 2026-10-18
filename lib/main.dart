@@ -101,7 +101,6 @@ class _MainScreenState extends State<MainScreen> {
   ServerModel? selectedServer;
   bool isLoadingServers = true;
 
-  // ⚠️ မင်း ရဲ့ Live Update Link ကို ဒီမှာ ထည့်ထားပါတယ် ⚠️
   final String serverListUrl = "https://raw.githubusercontent.com/aungmyingyi/cx-vpn-backend/refs/heads/main/servers.json";
 
   @override
@@ -322,7 +321,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       await flutterV2ray!.initializeV2Ray();
       
-      // Error မတက်စေရန် V2rayURL (r အသေး) သို့ ပြောင်းထားပါတယ်
       V2rayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
       
       await flutterV2ray!.startV2Ray(
