@@ -12,7 +12,7 @@ void main() async {
 }
 
 // ============================================================
-// 🔧 V2RAY SINGLETON MANAGER (ပြဿနာ #1 ပြင်ဆင်ချက်)
+// V2RAY SINGLETON MANAGER
 // ============================================================
 class V2rayManager {
   V2rayManager._();
@@ -43,7 +43,7 @@ class V2rayManager {
 }
 
 // ============================================================
-// 🔧 SERVER MODEL
+// SERVER MODEL
 // ============================================================
 class ServerModel {
   final String id, name, country, flag, vlessLink;
@@ -60,7 +60,7 @@ class ServerModel {
 }
 
 // ============================================================
-// 🔧 FLAG EXTRACTOR (ပြဿနာ #7 ပြင်ဆင်ချက်)
+// FLAG EXTRACTOR
 // ============================================================
 class FlagHelper {
   static final RegExp _emojiRegex = RegExp(
@@ -148,7 +148,6 @@ class _MainScreenState extends State<MainScreen> {
     _bootstrap();
   }
 
-  // 🔧 Splash + Loading ကို ပေါင်းစပ် (ပြဿနာ #5)
   Future<void> _bootstrap() async {
     final minSplash = Future.delayed(const Duration(milliseconds: 1500));
     await Future.wait([minSplash, fetchAndTest()]);
@@ -167,9 +166,7 @@ class _MainScreenState extends State<MainScreen> {
 
     for (String url in subUrls) {
       try {
-        final res = await http
-            .get(Uri.parse(url))
-            .timeout(const Duration(seconds: 8));
+        final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
         if (res.statusCode == 200) {
           List<String> links = res.body
               .split('\n')
@@ -196,11 +193,9 @@ class _MainScreenState extends State<MainScreen> {
       return;
     }
 
-    // 🔧 Random 12 ခု စမ်း (ပြဿနာ #9)
     allLinks.shuffle();
     List<String> linksToTest = allLinks.take(12).toList();
 
-    // 🔧 Singleton v2ray သုံး (ပြဿနာ #1)
     final mgr = V2rayManager();
     mgr.initialize(onStatusChanged: (_) {});
     final ready = await mgr.ensureInitialized();
@@ -260,7 +255,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     bool d = widget.isDark;
 
-    // 🔧 Splash ကို loading ပြီးမှ ဖျက် (ပြဿနာ #5)
     if (isSplash || isLoading) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
@@ -440,7 +434,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _spin;
   late AnimationController _glitch;
 
-  // 🔧 Singleton (ပြဿနာ #1)
   final V2rayManager _mgr = V2rayManager();
 
   int downloadSpeed = 0;
@@ -450,8 +443,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int ping = 0;
 
   final StartAppSdk startAppSdk = StartAppSdk();
-  StartAppInterstitialAd? interstitialAd;
-
+  
   int adsWatched = 0;
   int freeTimeRemaining = 0;
   Timer? _timer;
@@ -466,7 +458,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _glitch = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 600));
 
-    // 🔧 Test ads ကို debug မှာပဲ (ပြဿနာ #4)
     if (kDebugMode) {
       startAppSdk.setTestAdsEnabled(true);
     }
@@ -476,7 +467,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   void _onVpnStatus(dynamic status) {
     if (!mounted) return;
-    final connected = status.state == 'CONNECTED';
+    // 🔧 ပြင်ဆင်ချက်: Enum သို့မဟုတ် String မည်သို့ပင်ဖြစ်ပါစေ Error မတက်စေရန် စစ်ဆေးခြင်း
+    final connected = status.state.toString().toUpperCase().contains('CONNECTED');
+    
     setState(() {
       isConnected = connected;
       isConnecting = false;
@@ -496,7 +489,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // 🔧 Timer safety (ပြဿနာ #2)
   void _startTimer() {
     _timer?.cancel();
     _timeExpiredDialogShown = false;
@@ -528,7 +520,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       debugPrint("Stop error: $e");
     }
     if (!mounted) return;
-    // 🔧 Post-frame dialog (ပြဿနာ #2)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _showWatchAdDialog();
     });
@@ -555,15 +546,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
         return AlertDialog(
           backgroundColor: d ? const Color(0xFF1E293B) : Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Column(
             children: [
-              const Icon(Icons.play_circle_fill,
-                  color: Color(0xFFFF8A32), size: 50),
+              const Icon(Icons.play_circle_fill, color: Color(0xFFFF8A32), size: 50),
               const SizedBox(height: 10),
-              Text("Get 1 Hour Free",
-                  style: TextStyle(color: txt, fontWeight: FontWeight.bold)),
+              Text("Get 1 Hour Free", style: TextStyle(color: txt, fontWeight: FontWeight.bold)),
             ],
           ),
           content: Text(
@@ -578,10 +566,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Navigator.pop(context);
                 _startWatchingAds();
               },
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF8A32)),
-              child: const Text("Watch Videos",
-                  style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A32)),
+              child: const Text("Watch Videos", style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -589,55 +575,64 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  // 🔧 Ad logic ပြင်ဆင်ချက် (ပြဿနာ #3)
-  // Interstitial ကို "ကြည့်ပြီး" ဆိုတဲ့ အခြေအနေအဖြစ် onAdHidden ကို သုံးပေမယ့်
-  // adsWatched ကို တစ်ခါပဲ တိုးအောင် guard ထည့်
-  Future<bool> _showStartAppAd() async {
-    bool counted = false;
+  // 🔧 ပြင်ဆင်ချက်: ဗီဒီယိုအဆုံးထိကြည့်မှသာ ဆုပေးမည့် Rewarded Video Ad စနစ်
+  Future<bool> _showRewardedAd() async {
+    final completer = Completer<bool>();
     try {
-      interstitialAd = await startAppSdk.loadInterstitialAd(
-        onAdHidden: () {
-          // 🔧 ad ပိတ်တိုင်း တစ်ခါပဲ count
-          if (!counted && mounted) {
-            counted = true;
-            setState(() => adsWatched++);
-          }
+      await startAppSdk.loadRewardedVideoAd(
+        onAdNotDisplayed: () {
+          if (!completer.isCompleted) completer.complete(false);
         },
-      );
-
-      if (interstitialAd != null) {
-        final shown = await interstitialAd!.show();
-        if (shown) {
-          interstitialAd = null;
-          // Ad ပိတ်တဲ့အထိ စောင့်
-          await Future.delayed(const Duration(milliseconds: 500));
-          return counted;
+        onAdHidden: () {
+          if (!completer.isCompleted) completer.complete(false);
+        },
+        onVideoCompleted: () {
+          // ဗီဒီယို အပြီးသတ်ကြည့်မှသာ True ပြန်မည်
+          if (!completer.isCompleted) completer.complete(true);
+        },
+      ).then((ad) {
+        if (ad != null) {
+          ad.show().catchError((e) {
+            debugPrint("Show error: $e");
+            if (!completer.isCompleted) completer.complete(false);
+          });
+        } else {
+          if (!completer.isCompleted) completer.complete(false);
         }
-      } else {
-        _showSnack('No ad available. Please try again.');
-        return false;
-      }
+      }).onError((error, stackTrace) {
+        debugPrint("Load error: $error");
+        if (!completer.isCompleted) completer.complete(false);
+      });
     } catch (e) {
-      _showSnack('Ad error: $e');
+      if (!completer.isCompleted) completer.complete(false);
     }
-    return counted;
+    return completer.future;
   }
 
   Future<void> _startWatchingAds() async {
     setState(() => isConnecting = true);
     adsWatched = 0;
 
-    await _showStartAppAd();
-
-    if (adsWatched >= 1) {
-      await _showStartAppAd();
+    // ပထမ ဗီဒီယို
+    final firstOk = await _showRewardedAd();
+    if (firstOk) {
+      if (mounted) setState(() => adsWatched = 1);
     }
 
+    // ပထမ ဗီဒီယို အောင်မြင်မှ ဒုတိယ ဗီဒီယို ပြမည်
+    if (adsWatched >= 1) {
+      final secondOk = await _showRewardedAd();
+      if (secondOk) {
+        if (mounted) setState(() => adsWatched = 2);
+      }
+    }
+
+    // ဗီဒီယို ၂ ခုလုံး အောင်မြင်မှ အချိန်ပေးမည်
     if (adsWatched >= 2) {
       if (mounted) {
         setState(() {
           isConnecting = false;
-          freeTimeRemaining = 60 * 60;
+          freeTimeRemaining = 60 * 60; // ၁ နာရီ
           adsWatched = 0;
         });
         _connectVpn();
@@ -672,11 +667,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _spin.dispose();
     _glitch.dispose();
     _timer?.cancel();
-    interstitialAd = null;
     super.dispose();
   }
 
-  // 🔧 connect / _connectVpn ကို တစ်ခုတည်း စီမံ (ပြဿနာ #6)
   Future<void> _connectVpn() async {
     if (isConnecting) return;
     setState(() => isConnecting = true);
@@ -1465,7 +1458,7 @@ class _SettingsPageState extends State<SettingsPage> {
 }
 
 // ============================================================
-// PREMIUM PAGE (ပြဿနာ #8 ပြင်ဆင်ချက်)
+// PREMIUM PAGE
 // ============================================================
 class PremiumPage extends StatelessWidget {
   const PremiumPage({super.key});
@@ -1491,7 +1484,7 @@ class PremiumPage extends StatelessWidget {
 }
 
 // ============================================================
-// LOGIN SCREEN (ပြဿနာ #6 ပြင်ဆင်ချက်)
+// LOGIN SCREEN
 // ============================================================
 class LoginScreen extends StatelessWidget {
   final bool isDark;
@@ -1592,7 +1585,6 @@ class LoginScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           _btn("Continue with Google", Icons.g_mobiledata, d,
                               txt, () {
-                            // 🔧 Empty callback ပြင်ဆင်ချက်
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                   content:
