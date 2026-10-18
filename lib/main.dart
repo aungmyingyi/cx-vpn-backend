@@ -22,7 +22,6 @@ class ServerModel {
   });
 
   factory ServerModel.fromJson(Map<String, dynamic> j) {
-    // Generate a random base ping for each server to simulate real-world latency
     int ping = 15 + math.Random().nextInt(80); 
     return ServerModel(
       id: j['id']?.toString() ?? '',
@@ -342,7 +341,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _glitch;
   FlutterV2ray? v2ray;
 
-  // Traffic Stats State
   double downloadSpeed = 0.0;
   double uploadSpeed = 0.0;
   int currentPing = 0;
@@ -387,11 +385,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _trafficTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       setState(() {
-        // Simulate Download: 1MB to 15MB
         downloadSpeed = (_random.nextDouble() * 14 + 1); 
-        // Simulate Upload: 0.1MB to 4MB
         uploadSpeed = (_random.nextDouble() * 3.9 + 0.1);
-        // Simulate Ping based on server base ping + random fluctuation
         currentPing = widget.selectedServer.basePing + _random.nextInt(10) - 5;
       });
     });
@@ -848,21 +843,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  // UI မျဉ်းတွေ မရွဲ့အောင် FittedBox နဲ့ ပြင်ပေးထားပါတယ်
   Widget _stat(String v, String l, IconData ic, bool d, Color t, Color m, bool isActive) {
     return Expanded(
       child: _glass(
         d,
-        const EdgeInsets.all(15),
+        const EdgeInsets.all(12), // Padding ကို နည်းနည်းလျှော့ထားပါတယ်
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(ic, color: isActive ? const Color(0xFFFFB66D) : m, size: 19),
             const SizedBox(height: 8),
-            Text(v,
-                style: TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.bold, color: isActive ? t : m)),
+            // FittedBox က စာသားအရှည်ကို ကွက်တိ ချုံ့ပေးသွားမှာပါ
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(v,
+                  style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.bold, color: isActive ? t : m)),
+            ),
             const SizedBox(height: 4),
-            Text(l, style: TextStyle(fontSize: 10, color: m)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(l, style: TextStyle(fontSize: 10, color: m)),
+            ),
           ],
         ),
       ),
@@ -954,7 +957,6 @@ class ServersPage extends StatelessWidget {
                         ],
                       ),
                     ),
-                    // Ping Indicator
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -1024,7 +1026,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   fontSize: 27, fontWeight: FontWeight.bold, color: txt)),
           const SizedBox(height: 25),
           
-          // Routing Mode
           _glass(
             d,
             const EdgeInsets.all(16),
@@ -1064,7 +1065,6 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 12),
 
-          // Dark Appearance
           _glass(
             d,
             const EdgeInsets.all(16),
@@ -1108,7 +1108,6 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 12),
 
-          // Hide Ads
           _glass(
             d,
             const EdgeInsets.all(16),
@@ -1154,7 +1153,6 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(height: 12),
 
-          // About
           _glass(
             d,
             const EdgeInsets.all(24),
@@ -1195,7 +1193,6 @@ class PremiumPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Premium Page Design (Liquid Glass Style)
     return const Center(
       child: Text("Premium Features (Coming Soon)",
           style: TextStyle(color: Colors.white)),
