@@ -23,17 +23,14 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
-        version: 'latest'
-        cache: true
+        # version: 'latest' ဆိုတာ ဖျက်လိုက်ပါပြီ (သူ့အလိုလို latest ကို ယူသွားပါလိမ့်မယ်)
 
-    # ဒီအဆင့်က Android Folder မရှိရင် အလိုအလျောက် ဖန်တီးပေးသွားမှာပါ
     - name: Create Android folder if missing
       run: |
         if [ ! -d "android" ]; then
           flutter create --project-name cx_vpn --platforms=android .
         fi
 
-    # ဒီအဆင့်က Permission တွေကို အလိုအလျောက် ထည့်ပေးသွားမှာပါ
     - name: Add Permissions to AndroidManifest
       run: |
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n\n    <application/' android/app/src/main/AndroidManifest.xml
