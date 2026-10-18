@@ -51,11 +51,29 @@ jobs:
                 f.write(content)
         EOF
 
-    - name: Set minimum SDK version
+    - name: Configure Android Gradle for VPN
       run: |
-        # Flutter ရဲ့ Android build setting ကို အတင်းပြင်မယ်
-        sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle || true
-        sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/g' android/app/build.gradle.kts || true
+        python3 - <<'EOF'
+        import os
+        import re
+
+        paths = ['android/app/build.gradle', 'android/app/build.gradle.kts']
+        file_path = next((p for p in paths if os.path.exists(p)), None)
+
+        if file_path:
+            with open(file_path, 'r') as f:
+                content = f.read()
+
+            content = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk = 34', content)
+            content = re.sub(r'compileSdkVersion\s*=?\s*\d+', 'compileSdkVersion = 34', content)
+            content = re.sub(r'minSdk\s*=?\s*flutter\.minSdkVersion', 'minSdk = 21', content)
+            content = re.sub(r'minSdkVersion\s*=?\s*flutter\.minSdkVersion', 'minSdkVersion = 21', content)
+            content = re.sub(r'minSdk\s*=?\s*\d+', 'minSdk = 21', content)
+            content = re.sub(r'minSdkVersion\s*=?\s*\d+', 'minSdkVersion = 21', content)
+
+            with open(file_path, 'w') as f:
+                f.write(content)
+        EOF
       
     - name: Install dependencies
       run: flutter pub get
