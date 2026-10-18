@@ -64,15 +64,14 @@ jobs:
             with open(file_path, 'r') as f:
                 content = f.read()
 
-            # compileSdk နဲ့ minSdk ကို ပြင်မယ်
             content = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk = 34', content)
             content = re.sub(r'compileSdkVersion\s*=?\s*\d+', 'compileSdkVersion = 34', content)
+            
             content = re.sub(r'minSdk\s*=?\s*flutter\.minSdkVersion', 'minSdk = 21', content)
             content = re.sub(r'minSdkVersion\s*=?\s*flutter\.minSdkVersion', 'minSdkVersion = 21', content)
             content = re.sub(r'minSdk\s*=?\s*\d+', 'minSdk = 21', content)
             content = re.sub(r'minSdkVersion\s*=?\s*\d+', 'minSdkVersion = 21', content)
 
-            # NDK Version ကို ထည့်မယ်
             if 'ndkVersion' not in content:
                 if file_path.endswith('.kts'):
                     content = content.replace('android {', 'android {\n    ndkVersion = "25.1.8937393"')
@@ -87,7 +86,7 @@ jobs:
       run: flutter pub get
       
     - name: Build APK
-      run: flutter build apk --release --no-shrink
+      run: flutter build apk --release
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
