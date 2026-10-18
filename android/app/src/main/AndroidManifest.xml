@@ -4,7 +4,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <!-- Android 14+ အတွက် ထပ်တိုးရန် -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
@@ -30,7 +29,7 @@
             </intent-filter>
         </activity>
 
-        <!-- 🔴 အရေးကြီးဆုံး - VPN Service ကြေညာချက် (ဒါမပါရင် VPN အလုပ်မလုပ်ပါ) -->
+        <!-- 🔴 VPN Service ကြေညာချက် -->
         <service
             android:name="com.flutter_v2ray_client.V2RayVpnService"
             android:permission="android.permission.BIND_VPN_SERVICE"
@@ -50,7 +49,7 @@
             android:name="com.startapp.sdk.APPLICATION_ID"
             android:value="209308326" />
             
-        <!-- ရွေးချယ်နိုင်သည် - Return Ads ပိတ်ရန် -->
+        <!-- Return Ads ပိတ်ရန် -->
         <meta-data
             android:name="com.startapp.sdk.RETURN_ADS_ENABLED"
             android:value="false" />
