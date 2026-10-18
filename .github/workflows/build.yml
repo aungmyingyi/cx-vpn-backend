@@ -31,7 +31,7 @@ jobs:
         rm -rf android
         flutter create --project-name cx_vpn --platforms=android .
 
-    # 1. Kotlin Version ကို 2.0.0 သတ်မှတ်ခြင်း (အကောင်းဆုံးနေရာမှာ ထည့်ထားပါတယ်)
+    # 1. Kotlin ကို အတင်း ပြောင်းမယ်
     - name: Fix Kotlin Version to 2.0.0
       run: |
         sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.0.0"/' android/build.gradle
@@ -50,18 +50,21 @@ jobs:
     - name: Fix AAPT2 Version for SDK 35
       run: |
         echo "android.aapt2Version=8.6.1-11315950" >> android/gradle.properties
+        echo "kotlin.daemon.jvmargs=-Xmx2048m" >> android/gradle.properties
 
+    # 2. Gradle Clean ကို Force လုပ်မယ်
     - name: Clean Gradle Cache
       run: |
         cd android
-        ./gradlew clean
+        ./gradlew clean --no-daemon
         cd ..
 
     - name: Install dependencies
       run: flutter pub get
 
+    # 3. Build လုပ်တဲ့အခါမှာလည်း Cache မသုံးဘူးလို့ သတ်မှတ်မယ်
     - name: Build APKs (split per ABI)
-      run: flutter build apk --release --split-per-abi
+      run: flutter build apk --release --split-per-abi --no-tree-shake-icons
 
     - name: Upload APK (arm64-v8a)
       uses: actions/upload-artifact@v4
