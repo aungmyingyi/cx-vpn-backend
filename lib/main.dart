@@ -321,8 +321,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       await flutterV2ray!.initializeV2Ray();
       
-      // ဒီနေရာမှာ V2rayURL (r အသေး) လို့ ပြင်ထားပါတယ်
-      V2rayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
+      // သေချာစစ်ပြီး ရေးထားပါတယ် (V2RayURL လို့ ရေးရပါမယ်)
+      V2RayURL parser = V2RayURL(link: widget.selectedServer.vlessLink);
       
       await flutterV2ray!.startV2Ray(
         remark: "CX VPN",
