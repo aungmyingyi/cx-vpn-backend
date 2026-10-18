@@ -8,6 +8,17 @@ import 'package:startapp_sdk/startapp.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // StartApp SDK ကို စောစောကို Initialize လုပ်ထားမယ် (Crash မဖြစ်စေရန်)
+  try {
+    final startAppSdk = StartAppSdk();
+    if (kDebugMode) {
+      startAppSdk.setTestAdsEnabled(true);
+    }
+  } catch (e) {
+    debugPrint("StartApp Initialization Error: $e");
+  }
+
   runApp(const CXVpnApp());
 }
 
@@ -136,6 +147,7 @@ class _MainScreenState extends State<MainScreen> {
   bool isLoading = true;
   String? errorMsg;
 
+  // သင့်ရဲ့ မူရင်း Sub URLs တွေ
   final List<String> subUrls = [
     "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub1.txt",
     "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub2.txt",
@@ -166,7 +178,7 @@ class _MainScreenState extends State<MainScreen> {
 
     for (String url in subUrls) {
       try {
-        final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
+        final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
         if (res.statusCode == 200) {
           List<String> links = res.body
               .split('\n')
@@ -187,14 +199,15 @@ class _MainScreenState extends State<MainScreen> {
       if (mounted) {
         setState(() {
           isLoading = false;
-          errorMsg = "No valid links found.";
+          errorMsg = "No valid links found. Check your internet.";
         });
       }
       return;
     }
 
+    // Loading မြန်အောင် Server ၃ ခုကိုပဲ စမ်းမယ်
     allLinks.shuffle();
-    List<String> linksToTest = allLinks.take(12).toList();
+    List<String> linksToTest = allLinks.take(3).toList();
 
     final mgr = V2rayManager();
     mgr.initialize(onStatusChanged: (_) {});
@@ -214,9 +227,10 @@ class _MainScreenState extends State<MainScreen> {
     for (int i = 0; i < linksToTest.length; i++) {
       try {
         final parser = V2ray.parseFromURL(linksToTest[i]);
+        // Ping စမ်းချိန်ကို ၂ စက္ကန့်ပဲ သတ်မှတ်မယ်
         final delay = await mgr.v2ray
             .getServerDelay(config: parser.getFullConfiguration())
-            .timeout(const Duration(seconds: 3));
+            .timeout(const Duration(seconds: 2));
 
         final remark = parser.remark.isNotEmpty ? parser.remark : "Unknown";
         testedServers.add(ServerModel(
@@ -242,11 +256,31 @@ class _MainScreenState extends State<MainScreen> {
         });
       }
     } else {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          errorMsg = "Failed to ping servers.";
-        });
+      // Ping မမိရင်တောင် ပထမဆုံး Link ကို Default ထားမယ်
+      try {
+        final parser = V2ray.parseFromURL(linksToTest[0]);
+        final remark = parser.remark.isNotEmpty ? parser.remark : "Default Server";
+        if (mounted) {
+          setState(() {
+            servers = [ServerModel(
+              id: "0",
+              name: FlagHelper.cleanName(remark),
+              country: remark,
+              flag: FlagHelper.extractFlag(remark),
+              vlessLink: linksToTest[0],
+              ping: 999,
+            )];
+            selectedServer = servers.first;
+            isLoading = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+            errorMsg = "Failed to load servers.";
+          });
+        }
       }
     }
   }
@@ -255,6 +289,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     bool d = widget.isDark;
 
+    // Splash & Loading
     if (isSplash || isLoading) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
@@ -272,7 +307,7 @@ class _MainScreenState extends State<MainScreen> {
               const SizedBox(height: 20),
               Text(
                 isLoading && !isSplash
-                    ? 'Testing Best Servers...'
+                    ? 'Finding Best Server...'
                     : 'POWERED BY CEREBRA X',
                 style: TextStyle(
                     fontSize: 10, color: d ? Colors.grey : Colors.black54),
@@ -283,6 +318,7 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
+    // Error
     if (selectedServer == null) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
@@ -316,10 +352,13 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
+    // Login (White Screen မဖြစ်စေရန် ခဏပိတ်ထားသည်)
+    /*
     if (!isLoggedIn) {
       return LoginScreen(
           isDark: d, onLogin: () => setState(() => isLoggedIn = true));
     }
+    */
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -445,7 +484,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final StartAppSdk startAppSdk = StartAppSdk();
   
   int adsWatched = 0;
-  int freeTimeRemaining = 0;
+  // စမ်းသပ်ရလွယ်အောင် ၁ နာရီအစား ၅ မိနစ်ပဲ ထားပေးထားတယ် (၁ နာရီလိုချင်ရင် 3600 ပြောင်းပါ)
+  int freeTimeRemaining = 300; 
   Timer? _timer;
   bool _timeExpiredDialogShown = false;
 
@@ -458,34 +498,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _glitch = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 600));
 
-    if (kDebugMode) {
-      startAppSdk.setTestAdsEnabled(true);
-    }
-
     _mgr.initialize(onStatusChanged: _onVpnStatus);
   }
 
   void _onVpnStatus(dynamic status) {
     if (!mounted) return;
-    // 🔧 ပြင်ဆင်ချက်: Enum သို့မဟုတ် String မည်သို့ပင်ဖြစ်ပါစေ Error မတက်စေရန် စစ်ဆေးခြင်း
-    final connected = status.state.toString().toUpperCase().contains('CONNECTED');
-    
-    setState(() {
-      isConnected = connected;
-      isConnecting = false;
-      downloadSpeed = status.downloadSpeed ?? 0;
-      uploadSpeed = status.uploadSpeed ?? 0;
-      totalDownload = status.download ?? 0;
-      totalUpload = status.upload ?? 0;
-    });
+    try {
+      final connected = status.state.toString().toUpperCase().contains('CONNECTED');
+      
+      setState(() {
+        isConnected = connected;
+        isConnecting = false;
+        downloadSpeed = status.downloadSpeed ?? 0;
+        uploadSpeed = status.uploadSpeed ?? 0;
+        totalDownload = status.download ?? 0;
+        totalUpload = status.upload ?? 0;
+      });
 
-    if (connected) {
-      if (!_glitch.isAnimating) _glitch.repeat(reverse: true);
-      _fetchPing();
-      _startTimer();
-    } else {
-      _glitch.stop();
-      _stopTimer();
+      if (connected) {
+        if (!_glitch.isAnimating) _glitch.repeat(reverse: true);
+        _fetchPing();
+        _startTimer();
+      } else {
+        _glitch.stop();
+        _stopTimer();
+      }
+    } catch (e) {
+      debugPrint("Status Error: $e");
     }
   }
 
@@ -551,11 +590,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             children: [
               const Icon(Icons.play_circle_fill, color: Color(0xFFFF8A32), size: 50),
               const SizedBox(height: 10),
-              Text("Get 1 Hour Free", style: TextStyle(color: txt, fontWeight: FontWeight.bold)),
+              Text("Get Free Time", style: TextStyle(color: txt, fontWeight: FontWeight.bold)),
             ],
           ),
           content: Text(
-            "Watch 2 short videos to unlock 1 hour of free VPN time.\n\n⚠️ If you exit the video early, you won't get the time.",
+            "Watch 2 short videos to unlock free VPN time.\n\n⚠️ If you exit the video early, you won't get the time.",
             textAlign: TextAlign.center,
             style: TextStyle(color: mut, fontSize: 13),
           ),
@@ -575,7 +614,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  // 🔧 ပြင်ဆင်ချက်: ဗီဒီယိုအဆုံးထိကြည့်မှသာ ဆုပေးမည့် Rewarded Video Ad စနစ်
   Future<bool> _showRewardedAd() async {
     final completer = Completer<bool>();
     try {
@@ -587,7 +625,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           if (!completer.isCompleted) completer.complete(false);
         },
         onVideoCompleted: () {
-          // ဗီဒီယို အပြီးသတ်ကြည့်မှသာ True ပြန်မည်
           if (!completer.isCompleted) completer.complete(true);
         },
       ).then((ad) {
@@ -613,13 +650,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     setState(() => isConnecting = true);
     adsWatched = 0;
 
-    // ပထမ ဗီဒီယို
     final firstOk = await _showRewardedAd();
     if (firstOk) {
       if (mounted) setState(() => adsWatched = 1);
     }
 
-    // ပထမ ဗီဒီယို အောင်မြင်မှ ဒုတိယ ဗီဒီယို ပြမည်
     if (adsWatched >= 1) {
       final secondOk = await _showRewardedAd();
       if (secondOk) {
@@ -627,16 +662,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       }
     }
 
-    // ဗီဒီယို ၂ ခုလုံး အောင်မြင်မှ အချိန်ပေးမည်
     if (adsWatched >= 2) {
       if (mounted) {
         setState(() {
           isConnecting = false;
-          freeTimeRemaining = 60 * 60; // ၁ နာရီ
+          freeTimeRemaining = 300; // ၅ မိနစ်
           adsWatched = 0;
         });
         _connectVpn();
-        _showSnack('Success! You got 1 Hour Free.');
+        _showSnack('Success! You got free time.');
       }
     } else {
       if (mounted) {
@@ -684,10 +718,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      if (!await _mgr.v2ray.requestPermission()) {
+      // Permission ကို သေချာတောင်းမယ်
+      bool? permissionGranted = await _mgr.v2ray.requestPermission();
+      if (permissionGranted != true) {
         if (mounted) {
           setState(() => isConnecting = false);
-          _showSnack('VPN permission denied.');
+          _showSnack('VPN permission denied. Please allow it in settings.');
         }
         return;
       }
