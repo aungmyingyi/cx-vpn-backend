@@ -69,7 +69,6 @@ class _MainScreenState extends State<MainScreen> {
   bool isLoading = true;
   String? errorMsg;
 
-  // ခင်ဗျား ပို့ပေးထားတဲ့ Sub ၆ ခုရဲ့ Link
   final List<String> subUrls = [
     "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub1.txt",
     "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub2.txt",
@@ -96,7 +95,6 @@ class _MainScreenState extends State<MainScreen> {
 
     List<String> allLinks = [];
 
-    // ၁။ Sub ဖိုင်တွေအားလုံးကနေ Link တွေ ဆွဲထုတ်မယ်
     for (String url in subUrls) {
       try {
         final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
@@ -108,9 +106,7 @@ class _MainScreenState extends State<MainScreen> {
               .toList();
           allLinks.addAll(links);
         }
-      } catch (e) {
-        // Error ရင် ကျော်သွားမယ်
-      }
+      } catch (e) {}
     }
 
     if (allLinks.isEmpty) {
@@ -123,7 +119,6 @@ class _MainScreenState extends State<MainScreen> {
       return;
     }
 
-    // ပထမဆုံး ၁၅ ခုလောက်ကိုပဲ ယူပြီး Ping စမ်းမယ် (အကုန်စမ်းရင် အရမ်းကြာလို့)
     List<String> linksToTest = allLinks.take(15).toList();
     List<ServerModel> testedServers = [];
 
@@ -145,18 +140,15 @@ class _MainScreenState extends State<MainScreen> {
           vlessLink: link,
           ping: delay,
         ));
-      } catch (e) {
-        // Error တက်ရင် ကျော်မယ်
-      }
+      } catch (e) {}
     }
 
-    // ၂။ Ping အနည်းဆုံးကို ရွေးမယ်
     if (testedServers.isNotEmpty) {
       testedServers.sort((a, b) => a.ping.compareTo(b.ping));
       if (mounted) {
         setState(() {
           servers = testedServers;
-          selectedServer = testedServers.first; // အကောင်းဆုံး ဆာဗာကို ရွေးမယ်
+          selectedServer = testedServers.first;
           isLoading = false;
         });
       }
@@ -222,9 +214,7 @@ class _MainScreenState extends State<MainScreen> {
                 Text(errorMsg ?? "No servers available.", textAlign: TextAlign.center, style: TextStyle(color: d ? Colors.white : Colors.black)),
                 const SizedBox(height: 20),
                 ElevatedButton(
-                  onPressed: () {
-                    fetchAndTest();
-                  },
+                  onPressed: () { fetchAndTest(); },
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A32)),
                   child: const Text("Retry"),
                 ),
@@ -303,11 +293,6 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
-
-// =======================
-// HomePage, SettingsPage, PremiumPage, LoginScreen, SkyBackground, LeafP, TreeP တို့က အပေါ်က ကုဒ်အတိုင်း အတူတူပါပဲ။
-// ဒါပေမယ့် ServersPage မှာ Ping ပြဖို့ ပြင်ထားပါတယ်။
-// =======================
 
 class HomePage extends StatefulWidget {
   final bool isDark;
@@ -722,15 +707,11 @@ class ServersPage extends StatelessWidget {
                         ],
                       ),
                     ),
-                    // ဒီနေရာမှာ Ping လေးကို ထည့်ပေးထားပါတယ်
                     Row(
                       children: [
                         Icon(Icons.network_ping, size: 14, color: pingColor),
                         const SizedBox(width: 4),
-                        Text(
-                          "${s.ping} ms",
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: pingColor),
-                        ),
+                        Text("${s.ping} ms", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: pingColor)),
                         const SizedBox(width: 12),
                       ],
                     ),
@@ -749,4 +730,371 @@ class ServersPage extends StatelessWidget {
   }
 }
 
-// ကျန်တဲ့ SettingsPage, PremiumPage, LoginScreen, SkyBackground တို့က အတူတူပါပဲ
+class SettingsPage extends StatefulWidget {
+  final bool isDark;
+  final VoidCallback toggle;
+
+  const SettingsPage({super.key, required this.isDark, required this.toggle});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  bool hideAds = false;
+  String routingMode = "Smart Routing";
+
+  @override
+  Widget build(BuildContext context) {
+    bool d = widget.isDark;
+    Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
+    Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Settings", style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, color: txt)),
+          const SizedBox(height: 25),
+          _glass(d, const EdgeInsets.all(16), Row(
+            children: [
+              Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFFF8A32).withOpacity(0.15), borderRadius: BorderRadius.circular(12)), child: const Center(child: Text("⌁", style: TextStyle(fontSize: 20, color: Color(0xFFFFB66D))))),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Routing Mode", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: txt)),
+                    const SizedBox(height: 3),
+                    Text(routingMode, style: TextStyle(fontSize: 11, color: mut)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 16, color: mut),
+            ],
+          )),
+          const SizedBox(height: 12),
+          _glass(d, const EdgeInsets.all(16), Row(
+            children: [
+              Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFFF8A32).withOpacity(0.15), borderRadius: BorderRadius.circular(12)), child: const Center(child: Text("◐", style: TextStyle(fontSize: 20, color: Color(0xFFFFB66D))))),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Dark Appearance", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: txt)),
+                    const SizedBox(height: 3),
+                    Text("Liquid Glass theme", style: TextStyle(fontSize: 11, color: mut)),
+                  ],
+                ),
+              ),
+              Switch(value: d, onChanged: (val) => widget.toggle(), activeColor: const Color(0xFFFF8A32)),
+            ],
+          )),
+          const SizedBox(height: 12),
+          _glass(d, const EdgeInsets.all(16), Row(
+            children: [
+              Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFFF8A32).withOpacity(0.15), borderRadius: BorderRadius.circular(12)), child: const Center(child: Text("◈", style: TextStyle(fontSize: 20, color: Color(0xFFFFB66D))))),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Hide Home Screen Ads", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: txt)),
+                    const SizedBox(height: 3),
+                    Text("Visual preference", style: TextStyle(fontSize: 11, color: mut)),
+                  ],
+                ),
+              ),
+              Switch(value: hideAds, onChanged: (val) => setState(() => hideAds = val), activeColor: const Color(0xFFFF8A32)),
+            ],
+          )),
+          const SizedBox(height: 12),
+          _glass(d, const EdgeInsets.all(24), Column(
+            children: [
+              RichText(
+                text: TextSpan(
+                  text: 'CX ',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: txt, letterSpacing: -1),
+                  children: const [TextSpan(text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32)))],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text("Version 1.0.0", style: TextStyle(fontSize: 12, color: mut)),
+              const SizedBox(height: 5),
+              Text("Powered by Cerebra X", style: TextStyle(fontSize: 10, color: mut)),
+            ],
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+class PremiumPage extends StatelessWidget {
+  const PremiumPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: Text("Premium Features (Coming Soon)", style: TextStyle(color: Colors.white)));
+  }
+}
+
+class LoginScreen extends StatelessWidget {
+  final bool isDark;
+  final VoidCallback onLogin;
+
+  const LoginScreen({super.key, required this.isDark, required this.onLogin});
+
+  @override
+  Widget build(BuildContext context) {
+    bool d = isDark;
+    Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
+    Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          Positioned.fill(child: SkyBackground(isDark: d)),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          text: 'CX ',
+                          style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: txt),
+                          children: const [TextSpan(text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32)))],
+                        ),
+                      ),
+                      _glass(d, const EdgeInsets.symmetric(horizontal: 12, vertical: 6), Text("EN", style: TextStyle(fontSize: 12, color: txt))),
+                    ],
+                  ),
+                  const Spacer(),
+                  Container(
+                    width: 76, height: 76,
+                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(26), gradient: const LinearGradient(colors: [Color(0xFFFFBD76), Color(0xFFFF7929)])),
+                    child: const Center(child: Text("ϟ", style: TextStyle(fontSize: 43, color: Colors.white))),
+                  ),
+                  const SizedBox(height: 25),
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      text: 'Your internet.\n',
+                      style: TextStyle(fontSize: 35, fontWeight: FontWeight.bold, height: 1.15, color: txt),
+                      children: const [TextSpan(text: 'Your freedom.', style: TextStyle(color: Color(0xFFFFB66D)))],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text("Secure, private and connected.", style: TextStyle(color: mut)),
+                  const Spacer(),
+                  _glass(d, const EdgeInsets.all(21), Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("GET STARTED", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: mut)),
+                      const SizedBox(height: 15),
+                      _btn("Continue as Guest", Icons.person_outline, d, txt, onLogin),
+                      const SizedBox(height: 12),
+                      _btn("Continue with Google", Icons.g_mobiledata, d, txt, () {}),
+                      const SizedBox(height: 12),
+                      _btn("Continue with Reddit", Icons.forum, d, txt, () {}),
+                    ],
+                  )),
+                  const Spacer(),
+                  Text("POWERED BY CEREBRA X", style: TextStyle(fontSize: 10, letterSpacing: 2, color: mut)),
+                ],
+              ),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _btn(String t, IconData ic, bool d, Color tc, VoidCallback tap) {
+    return GestureDetector(
+      onTap: tap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
+          border: Border.all(color: d ? Colors.white.withOpacity(0.14) : Colors.white),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: d ? Colors.white.withOpacity(0.1) : Colors.white, borderRadius: BorderRadius.circular(12)),
+              child: Icon(ic, size: 20, color: tc),
+            ),
+            const SizedBox(width: 13),
+            Text(t, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: tc)),
+            const Spacer(),
+            Icon(Icons.arrow_forward_ios, size: 16, color: tc.withOpacity(0.5)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SkyBackground extends StatefulWidget {
+  final bool isDark;
+  const SkyBackground({super.key, required this.isDark});
+
+  @override
+  State<SkyBackground> createState() => _SkyBackgroundState();
+}
+
+class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProviderStateMixin {
+  late AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(seconds: 15))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    bool d = widget.isDark;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 800),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: d ? [const Color(0xFF020513), const Color(0xFF0A1128), const Color(0xFF192542)] : [const Color(0xFF4FACFE), const Color(0xFF00F2FE), const Color(0xFFE0F6FF)],
+        ),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: MediaQuery.of(context).size.height * 0.08,
+            right: MediaQuery.of(context).size.width * 0.12,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 800),
+              width: 80, height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: d ? Colors.white : const Color(0xFFFFDB58),
+                boxShadow: [BoxShadow(color: d ? Colors.white.withOpacity(0.3) : const Color(0xFFFFDB58).withOpacity(0.6), blurRadius: 40, spreadRadius: 10)],
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _c,
+              builder: (c, w) => CustomPaint(painter: LeafP(progress: _c.value, isDark: d)),
+            ),
+          ),
+          Positioned(
+            bottom: -10, left: 0, right: 0,
+            child: CustomPaint(size: Size(MediaQuery.of(context).size.width, 300), painter: TreeP(isDark: d)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class LeafP extends CustomPainter {
+  final double progress;
+  final bool isDark;
+
+  LeafP({required this.progress, required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = isDark ? const Color(0xFFFF8A32) : const Color(0xFF16A34A)
+      ..style = PaintingStyle.fill;
+
+    final r = math.Random(123);
+
+    for (int i = 0; i < 20; i++) {
+      double sx = r.nextDouble() * size.width;
+      double dl = r.nextDouble();
+      double sp = 0.5 + r.nextDouble();
+      double cp = (progress * sp + dl) % 1.0;
+      double y = size.height * cp;
+      double x = sx + (math.sin(cp * math.pi * 4) * 40);
+
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(cp * math.pi * 2);
+
+      Path pth = Path()
+        ..moveTo(0, 0)
+        ..quadraticBezierTo(7, -7, 14, 0)
+        ..quadraticBezierTo(7, 7, 0, 0);
+
+      canvas.drawPath(pth, p);
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant LeafP old) => old.progress != progress;
+}
+
+class TreeP extends CustomPainter {
+  final bool isDark;
+
+  TreeP({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = isDark ? Colors.black.withOpacity(0.85) : const Color(0xFF0F172A).withOpacity(0.6)
+      ..style = PaintingStyle.fill;
+
+    double w = size.width;
+    double h = size.height;
+
+    final pth = Path()
+      ..moveTo(w * 0.35, h)
+      ..cubicTo(w * 0.37, h * 0.8, w * 0.4, h * 0.63, w * 0.25, h * 0.46)
+      ..cubicTo(w * 0.2, h * 0.4, w * 0.1, h * 0.33, w * 0.05, h * 0.26)
+      ..cubicTo(w * 0.15, h * 0.3, w * 0.25, h * 0.36, w * 0.35, h * 0.43)
+      ..cubicTo(w * 0.37, h * 0.33, w * 0.32, h * 0.2, w * 0.4, h * 0.06)
+      ..cubicTo(w * 0.42, h * 0.2, w * 0.45, h * 0.33, w * 0.47, h * 0.46)
+      ..cubicTo(w * 0.57, h * 0.33, w * 0.7, h * 0.23, w * 0.85, h * 0.16)
+      ..cubicTo(w * 0.72, h * 0.26, w * 0.62, h * 0.4, w * 0.57, h * 0.53)
+      ..cubicTo(w * 0.65, h * 0.6, w * 0.75, h * 0.66, w * 0.9, h * 0.73)
+      ..cubicTo(w * 0.7, h * 0.7, w * 0.6, h * 0.63, w * 0.52, h * 0.56)
+      ..cubicTo(w * 0.5, h * 0.66, w * 0.52, h * 0.8, w * 0.55, h)
+      ..close();
+
+    canvas.drawPath(pth, p);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => true;
+}
+
+Widget _glass(bool d, EdgeInsets p, Widget c) {
+  return Container(
+    padding: p,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: d ? Colors.white.withOpacity(0.15) : Colors.white, width: 1.5),
+      color: d ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white.withOpacity(0.7),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, spreadRadius: 1)],
+    ),
+    child: c,
+  );
+}
