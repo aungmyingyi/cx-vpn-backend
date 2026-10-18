@@ -101,7 +101,7 @@ class _MainScreenState extends State<MainScreen> {
   ServerModel? selectedServer;
   bool isLoadingServers = true;
 
-  // ⚠️ မင်း ရဲ့ Live Update Link ကို ဒီမှာ ထည့်ထားပါတယ် ⚠️
+  // ⚠️ မင်း ပေးလိုက်တဲ့ Raw Link ကို ဒီမှာ ထည့်ထားပါတယ် ⚠️
   final String serverListUrl = "https://raw.githubusercontent.com/aungmyingyi/cx-vpn-backend/refs/heads/main/servers.json";
 
   @override
@@ -122,7 +122,6 @@ class _MainScreenState extends State<MainScreen> {
         });
       }
     } catch (e) {
-      // အင်တာနက် မရရင် ဒါမှမဟုတ် Error တက်ရင် ဒီအဆင့်ကို ရောက်ပါမယ်
       setState(() {
         isLoadingServers = false;
       });
@@ -330,7 +329,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       await v2ray.initializeV2Ray();
       
-      V2RayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
+      // Error မတက်စေရန် V2RayURL မှ V2rayURL သို့ ပြောင်းထားပါတယ်
+      V2rayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
       await v2ray.startV2Ray(
         remark: "CX VPN",
         config: parser.getFullConfiguration(),
