@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
+import 'dart:ui';
 
 void main() {
   runApp(const CXVpnApp());
@@ -29,285 +29,179 @@ class _CXVpnAppState extends State<CXVpnApp> {
       themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
         brightness: Brightness.light,
-        scaffoldBackgroundColor: const Color(0xFFE0F6FF), // Light sky
+        scaffoldBackgroundColor: const Color(0xFFE8EDF7),
         primaryColor: const Color(0xFFFF8A32),
         fontFamily: 'Roboto',
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF020513), // Dark sky
+        scaffoldBackgroundColor: const Color(0xFF070B16),
         primaryColor: const Color(0xFFFF8A32),
         fontFamily: 'Roboto',
       ),
-      home: HomeScreen(isDarkMode: isDarkMode, toggleTheme: toggleTheme),
+      home: MainScreen(isDarkMode: isDarkMode, toggleTheme: toggleTheme),
     );
   }
 }
 
-class HomeScreen extends StatefulWidget {
+class MainScreen extends StatefulWidget {
   final bool isDarkMode;
   final VoidCallback toggleTheme;
 
-  const HomeScreen({super.key, required this.isDarkMode, required this.toggleTheme});
+  const MainScreen({super.key, required this.isDarkMode, required this.toggleTheme});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<MainScreen> createState() => _MainScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
-  bool isConnected = false;
-  late AnimationController _rotationController;
+class _MainScreenState extends State<MainScreen> {
+  bool isSplash = true;
+  bool isLoggedIn = false;
+  int currentPageIndex = 0; // 0: Home, 1: Servers, 2: Settings, 3: Premium
 
   @override
   void initState() {
     super.initState();
-    _rotationController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    )..repeat(); // ပျားအုံအတွင်းလိုင်း အမြဲလည်နေစေရန်
-  }
-
-  @override
-  void dispose() {
-    _rotationController.dispose();
-    super.dispose();
+    // Splash Screen ကို ၁.၅ စက္ကန့် ပြမယ်
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => isSplash = false);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     bool isDark = widget.isDarkMode;
-    Color textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    Color subTextColor = isDark ? Colors.grey : const Color(0xFF475569);
-    Color bgGradientTop = isDark ? const Color(0xFF020513) : const Color(0xFF4FACFE);
-    Color bgGradientBottom = isDark ? const Color(0xFF192542) : const Color(0xFFE0F6FF);
+    Color bgColor = isDark ? const Color(0xFF070B16) : const Color(0xFFE8EDF7);
+    
+    if (isSplash) {
+      return Scaffold(
+        body: Container(
+          color: bgColor,
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('CX VPN', style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                SizedBox(height: 20),
+                CircularProgressIndicator(color: Color(0xFFFF8A32)),
+                SizedBox(height: 20),
+                Text('POWERED BY CEREBRA X', style: TextStyle(fontSize: 10, letterSpacing: 2)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (!isLoggedIn) {
+      return LoginScreen(
+        isDark: isDark,
+        onLogin: () => setState(() => isLoggedIn = true),
+      );
+    }
 
     return Scaffold(
-      body: AnimatedContainer(
-        duration: const Duration(milliseconds: 800),
+      body: Stack(
+        children: [
+          // Background Ambient Glows
+          _buildAmbientBackground(isDark),
+          
+          // Main Content
+          SafeArea(
+            child: IndexedStack(
+              index: currentPageIndex,
+              children: [
+                HomePage(isDark: isDark, toggleTheme: widget.toggleTheme),
+                const Center(child: Text("Servers Page")),
+                const Center(child: Text("Settings Page")),
+                const Center(child: Text("Premium Page")),
+              ],
+            ),
+          ),
+
+          // Bottom Navigation
+          Positioned(
+            bottom: 20,
+            left: 20,
+            right: 20,
+            child: GlassContainer(
+              isDark: isDark,
+              borderRadius: 24,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(0, Icons.home_outlined, "Home", isDark),
+                  _buildNavItem(1, Icons.language, "Servers", isDark),
+                  _buildNavItem(2, Icons.settings_outlined, "Settings", isDark),
+                  _buildNavItem(3, Icons.workspace_premium_outlined, "Premium", isDark),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, String label, bool isDark) {
+    bool isActive = currentPageIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => currentPageIndex = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFFFF8A32).withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: isActive ? const Color(0xFFFFB66D) : (isDark ? const Color(0xFF929DB5) : const Color(0xFF65718A))),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(fontSize: 10, color: isActive ? const Color(0xFFFFB66D) : (isDark ? const Color(0xFF929DB5) : const Color(0xFF65718A)))),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAmbientBackground(bool isDark) {
+    return Positioned.fill(
+      child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [bgGradientTop, bgGradientBottom],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark 
+              ? [const Color(0xFF080D1B), const Color(0xFF060914)]
+              : [const Color(0xFFEDF2FF), const Color(0xFFDCE5F5)],
           ),
         ),
         child: Stack(
           children: [
-            // --- Background Elements (Sun/Moon & Tree) ---
             Positioned(
-              top: MediaQuery.of(context).size.height * 0.1,
-              right: MediaQuery.of(context).size.width * 0.15,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 800),
-                width: 80,
-                height: 80,
+              top: MediaQuery.of(context).size.height * 0.16,
+              left: -100,
+              child: Container(
+                width: 260, height: 260,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isDark ? Colors.white : const Color(0xFFFFDB58),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDark ? Colors.white.withOpacity(0.2) : const Color(0xFFFFDB58).withOpacity(0.6),
-                      blurRadius: 40,
-                      spreadRadius: 10,
-                    )
-                  ],
+                  color: const Color(0xFF377BFF).withOpacity(0.18),
+                  boxShadow: [BoxShadow(color: const Color(0xFF377BFF).withOpacity(0.18), blurRadius: 85)],
                 ),
               ),
             ),
-            
-            // Tree Silhouette (Custom Painter)
             Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: CustomPaint(
-                size: Size(MediaQuery.of(context).size.width, 250),
-                painter: TreePainter(isDark: isDark),
-              ),
-            ),
-
-            // --- Main UI ---
-            SafeArea(
-              child: Column(
-                children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        RichText(
-                          text: TextSpan(
-                            text: 'CX ',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
-                            children: const [
-                              TextSpan(text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32))),
-                            ],
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            _buildIconBtn(
-                              icon: isDark ? Icons.brightness_6 : Icons.wb_sunny,
-                              onTap: widget.toggleTheme,
-                              isDark: isDark,
-                            ),
-                            const SizedBox(width: 10),
-                            _buildIconBtn(
-                              icon: Icons.settings,
-                              onTap: () {},
-                              isDark: isDark,
-                            ),
-                          ],
-                        )
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 30),
-
-                  // Welcome Text
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 25),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("WELCOME BACK", style: TextStyle(fontSize: 10, letterSpacing: 2, color: subTextColor)),
-                          const SizedBox(height: 5),
-                          Text(
-                            "Your digital\nworld, protected.",
-                            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, height: 1.2, color: textColor),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  // Honeycomb Icon (ညာဘက်အပေါ်ထောင့်နားက)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 25, top: 10),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.white),
-                        ),
-                        child: RotationTransition(
-                          turns: _rotationController,
-                          child: const Icon(Icons.settings_input_component, color: Color(0xFFFF8A32), size: 30),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // Squircle Connect Button
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        isConnected = !isConnected;
-                      });
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      width: 160,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(40), // Squircle
-                        color: isConnected 
-                            ? Colors.green.withOpacity(0.1) 
-                            : (isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.7)),
-                        border: Border.all(
-                          color: isConnected 
-                              ? Colors.greenAccent 
-                              : (isDark ? Colors.white.withOpacity(0.3) : Colors.white),
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: isConnected 
-                                ? Colors.greenAccent.withOpacity(0.4) 
-                                : (isDark ? Colors.transparent : Colors.black.withOpacity(0.05)),
-                            blurRadius: 40,
-                            spreadRadius: 5,
-                          )
-                        ]
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.power_settings_new,
-                          size: 60,
-                          color: isConnected ? Colors.greenAccent : textColor,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // Status Text
-                  Text(
-                    isConnected ? "CONNECTED" : "NOT CONNECTED",
-                    style: TextStyle(
-                      fontSize: 18, 
-                      letterSpacing: 2,
-                      fontWeight: FontWeight.bold,
-                      color: isConnected ? Colors.greenAccent : textColor
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    isConnected ? "Your connection is secured" : "Tap to connect securely",
-                    style: TextStyle(fontSize: 12, color: subTextColor),
-                  ),
-
-                  const Spacer(),
-
-                  // Glass Server Card
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
-                          border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.white),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.public, color: Color(0xFFFF8A32)),
-                            ),
-                            const SizedBox(width: 15),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text("YOUR LOCATION", style: TextStyle(fontSize: 10, letterSpacing: 1, color: subTextColor)),
-                                  const SizedBox(height: 4),
-                                  Text("Auto Location", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.arrow_forward_ios, size: 16, color: subTextColor),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                ],
+              bottom: MediaQuery.of(context).size.height * 0.12,
+              right: -100,
+              child: Container(
+                width: 260, height: 260,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFFF812D).withOpacity(0.18),
+                  boxShadow: [BoxShadow(color: const Color(0xFFFF812D).withOpacity(0.18), blurRadius: 85)],
+                ),
               ),
             ),
           ],
@@ -315,53 +209,321 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
     );
   }
+}
 
-  Widget _buildIconBtn({required IconData icon, required VoidCallback onTap, required bool isDark}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isDark ? Colors.white.withOpacity(0.1) : Colors.white),
+// ==========================================
+// HOME PAGE
+// ==========================================
+class HomePage extends StatefulWidget {
+  final bool isDark;
+  final VoidCallback toggleTheme;
+  const HomePage({super.key, required this.isDark, required this.toggleTheme});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  bool isConnected = false;
+
+  @override
+  Widget build(BuildContext context) {
+    Color textColor = widget.isDark ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
+    Color mutedColor = widget.isDark ? const Color(0xFF929DB5) : const Color(0xFF65718A);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              RichText(
+                text: TextSpan(
+                  text: 'CX ',
+                  style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: textColor, letterSpacing: -1.2),
+                  children: const [TextSpan(text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32)))],
+                ),
+              ),
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: widget.toggleTheme,
+                    child: GlassIcon(icon: widget.isDark ? Icons.wb_sunny_outlined : Icons.nightlight_round, isDark: widget.isDark),
+                  ),
+                  const SizedBox(width: 8),
+                  GlassIcon(icon: Icons.settings, isDark: widget.isDark),
+                ],
+              )
+            ],
+          ),
+          const SizedBox(height: 34),
+
+          // Welcome Text
+          Text("WELCOME BACK", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: mutedColor)),
+          const SizedBox(height: 9),
+          RichText(
+            text: TextSpan(
+              text: 'Your digital\nworld, ',
+              style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, height: 1.2, color: textColor),
+              children: const [TextSpan(text: 'protected.', style: TextStyle(color: Color(0xFFFFB66D)))],
+            ),
+          ),
+          
+          // Connection Area
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: () => setState(() => isConnected = !isConnected),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    width: 166, height: 166,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isConnected ? const Color(0xFF5DE2A0).withOpacity(0.1) : (widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6)),
+                      border: Border.all(
+                        color: isConnected ? const Color(0xFF5DE2A0) : (widget.isDark ? Colors.white.withOpacity(0.3) : Colors.white),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: isConnected ? const Color(0xFF5DE2A0).withOpacity(0.4) : (widget.isDark ? const Color(0xFFFF8A32).withOpacity(0.13) : Colors.black.withOpacity(0.05)),
+                          blurRadius: 45, spreadRadius: 5,
+                        )
+                      ]
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 124, height: 124,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.8),
+                          border: Border.all(color: widget.isDark ? Colors.white.withOpacity(0.2) : Colors.white),
+                        ),
+                        child: Icon(Icons.power_settings_new, size: 48, color: isConnected ? const Color(0xFF5DE2A0) : textColor),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 25),
+                Text(
+                  isConnected ? "CONNECTED" : "NOT CONNECTED",
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 2, color: isConnected ? const Color(0xFF5DE2A0) : textColor),
+                ),
+                const SizedBox(height: 7),
+                Text(isConnected ? "Your connection is secured" : "Tap to connect securely", style: TextStyle(fontSize: 12, color: mutedColor)),
+              ],
+            ),
+          ),
+
+          // Server Card
+          GlassContainer(
+            isDark: widget.isDark,
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 45, height: 45,
+                  decoration: BoxDecoration(
+                    color: widget.isDark ? Colors.white.withOpacity(0.1) : Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: widget.isDark ? Colors.white.withOpacity(0.1) : Colors.black12),
+                  ),
+                  child: const Icon(Icons.public, color: Color(0xFFFFB66D)),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("YOUR LOCATION", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1, color: mutedColor)),
+                      const SizedBox(height: 5),
+                      Text("Auto Location", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                      const SizedBox(height: 3),
+                      Text("Select a server location", style: TextStyle(fontSize: 11, color: mutedColor)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, size: 16, color: mutedColor),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 15),
+
+          // Stats Grid
+          Row(
+            children: [
+              _buildStatCard("0 B", "Downloaded", Icons.arrow_downward, widget.isDark, textColor, mutedColor),
+              const SizedBox(width: 10),
+              _buildStatCard("0 B", "Uploaded", Icons.arrow_upward, widget.isDark, textColor, mutedColor),
+              const SizedBox(width: 10),
+              _buildStatCard("--", "Ping", Icons.access_time, widget.isDark, textColor, mutedColor),
+            ],
+          ),
+
+          const SizedBox(height: 15),
+
+          // Premium Banner
+          GlassContainer(
+            isDark: widget.isDark,
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 45, height: 45,
+                  decoration: BoxDecoration(color: const Color(0xFFFF8A32).withOpacity(0.13), borderRadius: BorderRadius.circular(15)),
+                  child: const Icon(Icons.workspace_premium, color: Color(0xFFFFB66D)),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("CX Premium", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                      const SizedBox(height: 5),
+                      Text("Unlock your full potential", style: TextStyle(fontSize: 11, color: mutedColor)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios, size: 16, color: mutedColor),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 30),
+          
+          // Explore
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Explore", style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textColor)),
+              Text("YOUR VPN", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: mutedColor)),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Feature Grid
+          Row(
+            children: [
+              _buildFeatureCard("Routing Mode", "Customize traffic", Icons.alt_route, widget.isDark, textColor, mutedColor),
+              const SizedBox(width: 12),
+              _buildFeatureCard("Settings", "Personalize app", Icons.settings, widget.isDark, textColor, mutedColor),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildFeatureCard("Help Center", "Get assistance", Icons.help_outline, widget.isDark, textColor, mutedColor),
+              const SizedBox(width: 12),
+              _buildFeatureCard("Privacy", "Your protection", Icons.security, widget.isDark, textColor, mutedColor),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(String value, String label, IconData icon, bool isDark, Color text, Color muted) {
+    return Expanded(
+      child: GlassContainer(
+        isDark: isDark,
+        padding: const EdgeInsets.all(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: const Color(0xFFFFB66D), size: 19),
+            const SizedBox(height: 8),
+            Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: text)),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(fontSize: 10, color: muted)),
+          ],
         ),
-        child: Icon(icon, size: 20, color: isDark ? Colors.white : const Color(0xFF0F172A)),
+      ),
+    );
+  }
+
+  Widget _buildFeatureCard(String title, String subtitle, IconData icon, bool isDark, Color text, Color muted) {
+    return Expanded(
+      child: GlassContainer(
+        isDark: isDark,
+        padding: const EdgeInsets.all(17),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.07) : Colors.white,
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: isDark ? Colors.white.withOpacity(0.13) : Colors.transparent),
+              ),
+              child: Icon(icon, color: const Color(0xFFFFB66D), size: 20),
+            ),
+            const SizedBox(height: 15),
+            Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: text)),
+            const SizedBox(height: 5),
+            Text(subtitle, style: TextStyle(fontSize: 10, color: muted)),
+          ],
+        ),
       ),
     );
   }
 }
 
-// သစ်ပင် (Tree Trunk) ဆွဲတဲ့ Class
-class TreePainter extends CustomPainter {
+// ==========================================
+// LOGIN SCREEN
+// ==========================================
+class LoginScreen extends StatelessWidget {
   final bool isDark;
-  TreePainter({required this.isDark});
+  final VoidCallback onLogin;
+  const LoginScreen({super.key, required this.isDark, required this.onLogin});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = isDark ? Colors.black.withOpacity(0.8) : const Color(0xFF0F172A).withOpacity(0.4)
-      ..style = PaintingStyle.fill;
+  Widget build(BuildContext context) {
+    Color textColor = isDark ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
+    Color mutedColor = isDark ? const Color(0xFF929DB5) : const Color(0xFF65718A);
 
-    final path = Path();
-    double w = size.width;
-    double h = size.height;
-
-    // သစ်ပင် ပင်စည်နဲ့ အကိုင်းအခက် ပုံသဏ္ဍာန်
-    path.moveTo(w * 0.4, h);
-    path.quadraticBezierTo(w * 0.45, h * 0.6, w * 0.3, h * 0.4);
-    path.quadraticBezierTo(w * 0.2, h * 0.2, w * 0.1, h * 0.1);
-    path.quadraticBezierTo(w * 0.3, h * 0.3, w * 0.4, h * 0.5);
-    path.quadraticBezierTo(w * 0.45, h * 0.2, w * 0.6, h * 0.05);
-    path.quadraticBezierTo(w * 0.55, h * 0.3, w * 0.5, h * 0.6);
-    path.quadraticBezierTo(w * 0.7, h * 0.3, w * 0.9, h * 0.2);
-    path.quadraticBezierTo(w * 0.75, h * 0.5, w * 0.6, h * 0.8);
-    path.lineTo(w * 0.6, h);
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Background Gradient (Simplified for login)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  colors: isDark ? [const Color(0xFF080D1B), const Color(0xFF060914)] : [const Color(0xFFEDF2FF), const Color(0xFFDCE5F5)],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Top Bar
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          text: 'CX ',
+                          style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: textColor),
+                          children: const [TextSpan(text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32)))],
+                        ),
+                      ),
+                      GlassContainer(
+                        isDark: isDark,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        child: Text("EN", style: TextStyle(fontSize: 12, color: textColor)),
+                      )
+                    ],
+                  ),
+                  const Spacer(),
+              
