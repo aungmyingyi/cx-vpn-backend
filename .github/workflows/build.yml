@@ -35,17 +35,17 @@ jobs:
       run: |
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n\n    <application/' android/app/src/main/AndroidManifest.xml
 
-    # 1. SDK 35 ကို အတင်းတောင်းနေတဲ့ plugin အတွက် build.gradle ကို ပြင်မယ်
+    # Android SDK 35 ကို လိုအပ်တဲ့ plugin အတွက် ဗားရှင်းများ ညှိခြင်း
     - name: Fix Android SDK Versions
       run: |
         sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
         sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
         sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
 
-    # 2. AAPT2 Error မတက်အောင် SDK 35 နဲ့ Build-tools တွေကို ကြိုတင်သွင်းမယ်
-    - name: Install Required Android SDK Components
+    # AAPT2 Error ဖြေရှင်းချက် (SDK 35 နဲ့ ကိုက်ညီတဲ့ AAPT2 version ကို သတ်မှတ်ခြင်း)
+    - name: Fix AAPT2 Version for SDK 35
       run: |
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-35" "build-tools;34.0.0" || true
+        echo "android.aapt2Version=8.6.1-11315950" >> android/gradle.properties
 
     - name: Install dependencies
       run: flutter pub get
