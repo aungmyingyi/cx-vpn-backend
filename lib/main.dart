@@ -4,16 +4,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_v2ray_client/flutter_v2ray.dart'; 
-import 'package:unity_ads_plugin/unity_ads_plugin.dart';
+import 'package:startapp_sdk/startapp.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Unity Ads ကို စတင် Initialize လုပ်မယ်
-  await UnityAds.init(
-    gameId: '800403175', // သင့် Game ID
-    testMode: true,     // စမ်းသပ်နေတဲ့အတွက် True ထားပါ။ App Store တင်မယ်ဆိုရင် False ပြောင်းပါ
-  );
+  // Start.io ကို စတင် Initialize လုပ်မယ်
+  StartAppSdk().init();
   
   runApp(const CXVpnApp());
 }
@@ -420,11 +417,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     adsWatched = 0;
 
     // ပထမ ကြော်ငြာ
-    await _showUnityAd();
+    await _showStartAppAd();
     
     // ပထမ ကြော်ငြာ ပြီးမှ ဒုတိယ ကြော်ငြာ ပြမယ်
     if (adsWatched == 1) {
-      await _showUnityAd();
+      await _showStartAppAd();
     }
 
     // ကြော်ငြာ ၂ ခုလုံး အောင်မြင်ရင် ၁ နာရီ ပေးမယ်
@@ -451,27 +448,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
-  // ✅ ပြင်ဆင်ပြီးသား Unity Ad Function (listener ကို ဖြုတ်ထားပါတယ်)
-  Future<void> _showUnityAd() async {
+  // Start.io Ad Function
+  Future<void> _showStartAppAd() async {
     bool adCompleted = false;
 
-    UnityAds.showVideoAd(
-      placementId: 'BP_Rewarded_Android',
-      onComplete: (placementId) {
-        adCompleted = true;
-        adsWatched++;
-      },
-      onClick: (placementId) {},
-      onFailed: (placementId, error, message) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ad failed: $error')),
-        );
-      },
-      onSkipped: (placementId) {
-        // Skip လုပ်ရင် ဘာမှ မလုပ်ဘူး
-        adCompleted = false;
-      },
-    );
+    try {
+      // StartApp Interstitial Ad ကို ပြမယ်
+      StartAppSdk().showInterstitialAd(
+        onAdNotShown: (error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ad failed: $error')),
+          );
+        },
+        onAdShown: () {},
+        onAdHidden: () {
+          adCompleted = true;
+          adsWatched++;
+        },
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ad error: $e')),
+      );
+    }
 
     // ကြော်ငြာ ပြီးတဲ့အထိ စောင့်မယ်
     while (!adCompleted) {
