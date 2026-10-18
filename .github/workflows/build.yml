@@ -31,6 +31,12 @@ jobs:
         rm -rf android
         flutter create --project-name cx_vpn --platforms=android .
 
+    # 1. Kotlin Version ကို 2.0.0 သတ်မှတ်ခြင်း (အကောင်းဆုံးနေရာမှာ ထည့်ထားပါတယ်)
+    - name: Fix Kotlin Version to 2.0.0
+      run: |
+        sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.0.0"/' android/build.gradle
+        sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.0.0"/' android/settings.gradle
+
     - name: Add Permissions to AndroidManifest
       run: |
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n\n    <application/' android/app/src/main/AndroidManifest.xml
@@ -45,11 +51,11 @@ jobs:
       run: |
         echo "android.aapt2Version=8.6.1-11315950" >> android/gradle.properties
 
-    # ✅ ဒီနေရာမှာ Kotlin Version ကို ပြင်မယ်
-    - name: Fix Kotlin Version
+    - name: Clean Gradle Cache
       run: |
-        sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.23"/' android/build.gradle
-        sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.23"/' android/settings.gradle
+        cd android
+        ./gradlew clean
+        cd ..
 
     - name: Install dependencies
       run: flutter pub get
