@@ -51,36 +51,11 @@ jobs:
                 f.write(content)
         EOF
 
-    # ဒီအဆင့်ကို ပြင်ထားပါတယ် (build.gradle နဲ့ build.gradle.kts နှစ်မျိုးလုံးအတွက်)
-    - name: Configure Android Gradle for VPN
+    - name: Set minimum SDK version
       run: |
-        python3 - <<'EOF'
-        import os
-        import re
-
-        paths = ['android/app/build.gradle', 'android/app/build.gradle.kts']
-        file_path = next((p for p in paths if os.path.exists(p)), None)
-
-        if file_path:
-            with open(file_path, 'r') as f:
-                content = f.read()
-
-            # compileSdk ကို 34 သို့ ပြောင်းခြင်း
-            content = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk = 34', content)
-            content = re.sub(r'compileSdkVersion\s*=?\s*\d+', 'compileSdkVersion = 34', content)
-            
-            # minSdk ကို 21 သို့ ပြောင်းခြင်း (VPN အတွက် လိုအပ်ချက်)
-            content = re.sub(r'minSdk\s*=?\s*flutter\.minSdkVersion', 'minSdk = 21', content)
-            content = re.sub(r'minSdkVersion\s*=?\s*flutter\.minSdkVersion', 'minSdkVersion = 21', content)
-            content = re.sub(r'minSdk\s*=?\s*\d+', 'minSdk = 21', content)
-            content = re.sub(r'minSdkVersion\s*=?\s*\d+', 'minSdkVersion = 21', content)
-
-            with open(file_path, 'w') as f:
-                f.write(content)
-            print(f"Successfully updated {file_path}")
-        else:
-            print("Could not find build.gradle or build.gradle.kts")
-        EOF
+        # Flutter ရဲ့ Android build setting ကို အတင်းပြင်မယ်
+        sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle || true
+        sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/g' android/app/build.gradle.kts || true
       
     - name: Install dependencies
       run: flutter pub get
