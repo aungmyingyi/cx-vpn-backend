@@ -9,7 +9,6 @@ import 'package:startapp_sdk/startapp.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // StartApp SDK ကို စောစောကို Initialize လုပ်ထားမယ် (Crash မဖြစ်စေရန်)
   try {
     final startAppSdk = StartAppSdk();
     if (kDebugMode) {
@@ -140,14 +139,12 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   bool isSplash = true;
-  bool isLoggedIn = false;
   int pageIndex = 0;
   List<ServerModel> servers = [];
   ServerModel? selectedServer;
   bool isLoading = true;
   String? errorMsg;
 
-  // သင့်ရဲ့ မူရင်း Sub URLs တွေ
   final List<String> subUrls = [
     "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub1.txt",
     "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub2.txt",
@@ -205,7 +202,6 @@ class _MainScreenState extends State<MainScreen> {
       return;
     }
 
-    // Loading မြန်အောင် Server ၃ ခုကိုပဲ စမ်းမယ်
     allLinks.shuffle();
     List<String> linksToTest = allLinks.take(3).toList();
 
@@ -227,7 +223,6 @@ class _MainScreenState extends State<MainScreen> {
     for (int i = 0; i < linksToTest.length; i++) {
       try {
         final parser = V2ray.parseFromURL(linksToTest[i]);
-        // Ping စမ်းချိန်ကို ၂ စက္ကန့်ပဲ သတ်မှတ်မယ်
         final delay = await mgr.v2ray
             .getServerDelay(config: parser.getFullConfiguration())
             .timeout(const Duration(seconds: 2));
@@ -256,7 +251,6 @@ class _MainScreenState extends State<MainScreen> {
         });
       }
     } else {
-      // Ping မမိရင်တောင် ပထမဆုံး Link ကို Default ထားမယ်
       try {
         final parser = V2ray.parseFromURL(linksToTest[0]);
         final remark = parser.remark.isNotEmpty ? parser.remark : "Default Server";
@@ -289,7 +283,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     bool d = widget.isDark;
 
-    // Splash & Loading
     if (isSplash || isLoading) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
@@ -318,7 +311,6 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    // Error
     if (selectedServer == null) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
@@ -351,14 +343,6 @@ class _MainScreenState extends State<MainScreen> {
         ),
       );
     }
-
-    // Login (White Screen မဖြစ်စေရန် ခဏပိတ်ထားသည်)
-    /*
-    if (!isLoggedIn) {
-      return LoginScreen(
-          isDark: d, onLogin: () => setState(() => isLoggedIn = true));
-    }
-    */
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -484,7 +468,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final StartAppSdk startAppSdk = StartAppSdk();
   
   int adsWatched = 0;
-  // စမ်းသပ်ရလွယ်အောင် ၁ နာရီအစား ၅ မိနစ်ပဲ ထားပေးထားတယ် (၁ နာရီလိုချင်ရင် 3600 ပြောင်းပါ)
   int freeTimeRemaining = 300; 
   Timer? _timer;
   bool _timeExpiredDialogShown = false;
@@ -666,7 +649,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (mounted) {
         setState(() {
           isConnecting = false;
-          freeTimeRemaining = 300; // ၅ မိနစ်
+          freeTimeRemaining = 300;
           adsWatched = 0;
         });
         _connectVpn();
@@ -718,7 +701,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      // Permission ကို သေချာတောင်းမယ်
       bool? permissionGranted = await _mgr.v2ray.requestPermission();
       if (permissionGranted != true) {
         if (mounted) {
