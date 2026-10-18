@@ -35,9 +35,12 @@ jobs:
       run: |
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n\n    <application/' android/app/src/main/AndroidManifest.xml
 
-    - name: Set MinSdkVersion to 24
+    # ဒီအဆင့်လေးက Android SDK ဗားရှင်းတွေကို ညှိပေးသွားမှာပါ (Error ဖြေရှင်းချက်)
+    - name: Fix Android SDK Versions
       run: |
-        sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' android/app/build.gradle
+        sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
+        sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/' android/app/build.gradle
+        sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/' android/app/build.gradle
 
     - name: Install dependencies
       run: flutter pub get
