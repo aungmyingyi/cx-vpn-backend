@@ -1,5 +1,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- လိုအပ်တဲ့ Permission တွေ -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -9,7 +8,8 @@
     <application
         android:label="cx_vpn"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         
         <activity
             android:name=".MainActivity"
@@ -29,7 +29,6 @@
             </intent-filter>
         </activity>
 
-        <!-- 🔴 VPN Service ကြေညာချက် -->
         <service
             android:name="com.flutter_v2ray_client.V2RayVpnService"
             android:permission="android.permission.BIND_VPN_SERVICE"
@@ -38,18 +37,17 @@
             <intent-filter>
                 <action android:name="android.net.VpnService"/>
             </intent-filter>
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="VPN connection"/>
         </service>
         
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <!-- Start.io ရဲ့ App ID -->
         <meta-data
             android:name="com.startapp.sdk.APPLICATION_ID"
             android:value="209308326" />
             
-        <!-- Return Ads ပိတ်ရန် -->
         <meta-data
             android:name="com.startapp.sdk.RETURN_ADS_ENABLED"
             android:value="false" />
