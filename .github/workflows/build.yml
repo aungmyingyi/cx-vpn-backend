@@ -23,19 +23,13 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
-        flutter-version: '3.22.0' # <--- Flutter Version အသစ်ပြောင်းထားပါတယ်
+        flutter-version: '3.19.6' 
         cache: true
 
     - name: Create Android folder (v2)
       run: |
         rm -rf android
         flutter create --project-name cx_vpn --platforms=android .
-
-    # 1. Kotlin Version ကို 2.0.0 သတ်မှတ်မယ်
-    - name: Fix Kotlin Version to 2.0.0
-      run: |
-        sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.0.0"/' android/build.gradle
-        sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "2.0.0"/' android/settings.gradle
 
     - name: Add Permissions to AndroidManifest
       run: |
@@ -47,22 +41,11 @@ jobs:
         sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' android/app/build.gradle
         sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 35/' android/app/build.gradle
 
-    - name: Fix AAPT2 Version for SDK 35
-      run: |
-        echo "android.aapt2Version=8.6.1-11315950" >> android/gradle.properties
-        echo "kotlin.daemon.jvmargs=-Xmx2048m" >> android/gradle.properties
-
-    - name: Clean Gradle Cache
-      run: |
-        cd android
-        ./gradlew clean --no-daemon
-        cd ..
-
     - name: Install dependencies
       run: flutter pub get
 
     - name: Build APKs (split per ABI)
-      run: flutter build apk --release --split-per-abi --no-tree-shake-icons
+      run: flutter build apk --release --split-per-abi
 
     - name: Upload APK (arm64-v8a)
       uses: actions/upload-artifact@v4
