@@ -62,7 +62,6 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    // Splash Screen ကို ၁.၅ စက္ကန့် ပြမယ်
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) setState(() => isSplash = false);
     });
@@ -81,11 +80,11 @@ class _MainScreenState extends State<MainScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('CX VPN', style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                Text('CX VPN', style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, letterSpacing: 1.2, color: Colors.white)),
                 SizedBox(height: 20),
                 CircularProgressIndicator(color: Color(0xFFFF8A32)),
                 SizedBox(height: 20),
-                Text('POWERED BY CEREBRA X', style: TextStyle(fontSize: 10, letterSpacing: 2)),
+                Text('POWERED BY CEREBRA X', style: TextStyle(fontSize: 10, letterSpacing: 2, color: Colors.grey)),
               ],
             ),
           ),
@@ -103,18 +102,16 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Ambient Glows
           _buildAmbientBackground(isDark),
           
-          // Main Content
           SafeArea(
             child: IndexedStack(
               index: currentPageIndex,
               children: [
                 HomePage(isDark: isDark, toggleTheme: widget.toggleTheme),
-                const Center(child: Text("Servers Page")),
-                const Center(child: Text("Settings Page")),
-                const Center(child: Text("Premium Page")),
+                Center(child: Text("Servers Page", style: TextStyle(color: isDark ? Colors.white : Colors.black))),
+                Center(child: Text("Settings Page", style: TextStyle(color: isDark ? Colors.white : Colors.black))),
+                Center(child: Text("Premium Page", style: TextStyle(color: isDark ? Colors.white : Colors.black))),
               ],
             ),
           ),
@@ -491,7 +488,6 @@ class LoginScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Gradient (Simplified for login)
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -507,7 +503,6 @@ class LoginScreen extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // Top Bar
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -526,4 +521,143 @@ class LoginScreen extends StatelessWidget {
                     ],
                   ),
                   const Spacer(),
-              
+                  
+                  Container(
+                    width: 76, height: 76,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(26),
+                      gradient: const LinearGradient(colors: [Color(0xFFFFBD76), Color(0xFFFF7929)]),
+                    ),
+                    child: const Center(child: Text("ϟ", style: TextStyle(fontSize: 43, color: Colors.white))),
+                  ),
+                  const SizedBox(height: 25),
+                  
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      text: 'Your internet.\n',
+                      style: TextStyle(fontSize: 35, fontWeight: FontWeight.bold, height: 1.15, color: textColor),
+                      children: const [TextSpan(text: 'Your freedom.', style: TextStyle(color: Color(0xFFFFB66D)))],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text("Secure, private and connected.", style: TextStyle(color: mutedColor)),
+                  const Spacer(),
+
+                  GlassContainer(
+                    isDark: isDark,
+                    padding: const EdgeInsets.all(21),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("GET STARTED", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: mutedColor)),
+                        const SizedBox(height: 15),
+                        _buildLoginBtn("Continue as Guest", Icons.person_outline, isDark, textColor, onLogin),
+                        const SizedBox(height: 12),
+                        _buildLoginBtn("Continue with Google", Icons.g_mobiledata, isDark, textColor, () {}),
+                        const SizedBox(height: 12),
+                        _buildLoginBtn("Continue with Reddit", Icons.forum, isDark, textColor, () {}), // Changed icon to forum to avoid errors
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Text("POWERED BY CEREBRA X", style: TextStyle(fontSize: 10, letterSpacing: 2, color: mutedColor)),
+                ],
+              ),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginBtn(String text, IconData icon, bool isDark, Color textColor, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
+          border: Border.all(color: isDark ? Colors.white.withOpacity(0.14) : Colors.white),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: isDark ? Colors.white.withOpacity(0.1) : Colors.white, borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, size: 20, color: textColor),
+            ),
+            const SizedBox(width: 13),
+            Text(text, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+            const Spacer(),
+            Icon(Icons.arrow_forward_ios, size: 16, color: textColor.withOpacity(0.5)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// REUSABLE GLASS COMPONENTS
+// ==========================================
+class GlassContainer extends StatelessWidget {
+  final Widget child;
+  final bool isDark;
+  final EdgeInsetsGeometry padding;
+  final double borderRadius;
+
+  const GlassContainer({
+    super.key,
+    required this.child,
+    required this.isDark,
+    this.padding = EdgeInsets.zero,
+    this.borderRadius = 22,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(borderRadius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(borderRadius),
+            border: Border.all(
+              color: isDark ? Colors.white.withOpacity(0.14) : const Color(0xFF2B3954).withOpacity(0.13),
+              width: 1,
+            ),
+            // ERROR FIX: Removed 'color' here because we use 'gradient'
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark 
+                ? [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.02)] 
+                : [Colors.white.withOpacity(0.8), Colors.white.withOpacity(0.4)],
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class GlassIcon extends StatelessWidget {
+  final IconData icon;
+  final bool isDark;
+  const GlassIcon({super.key, required this.icon, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassContainer(
+      isDark: isDark,
+      borderRadius: 15,
+      padding: const EdgeInsets.all(10),
+      child: Icon(icon, size: 22, color: isDark ? Colors.white : const Color(0xFF182239)),
+    );
+  }
+}
