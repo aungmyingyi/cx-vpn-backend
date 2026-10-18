@@ -81,7 +81,6 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
 
-    // Splash timer ကို fetch နဲ့ သီးသန့်ထားပါ
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) setState(() => isSplash = false);
     });
@@ -91,9 +90,8 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> fetch() async {
     try {
-      final res = await http.get(Uri.parse(url)).timeout(
-            const Duration(seconds: 15),
-          );
+      final res =
+          await http.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
         final decoded = json.decode(res.body);
         if (decoded is List) {
@@ -132,7 +130,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     bool d = widget.isDark;
 
-    // Splash screen
     if (isSplash) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
@@ -158,7 +155,6 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    // Loading
     if (isLoading) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
@@ -176,7 +172,6 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    // No servers / error
     if (selectedServer == null) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
@@ -215,7 +210,6 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    // Login
     if (!isLoggedIn) {
       return LoginScreen(
         isDark: d,
@@ -340,14 +334,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _spin = AnimationController(vsync: this, duration: const Duration(seconds: 6))
-      ..repeat();
+    _spin = AnimationController(
+            vsync: this, duration: const Duration(seconds: 6))
+        ..repeat();
     _glitch = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
 
-    // V2Ray instance ကို တစ်ခါတည်း create လုပ်ပါ
     v2ray = FlutterV2ray(
       onStatusChanged: (status) {
         if (!mounted) return;
@@ -375,7 +369,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Future<void> connect() async {
     if (isConnecting) return;
 
-    // Disconnect
     if (isConnected) {
       try {
         await v2ray?.stopV2Ray();
@@ -387,10 +380,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     setState(() => isConnecting = true);
 
     try {
-      // 1. Initialize
       await v2ray!.initializeV2Ray();
 
-      // 2. Request permission
       final granted = await v2ray!.requestPermission();
       if (!granted) {
         if (mounted) {
@@ -402,7 +393,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      // 3. Parse link
       final link = widget.selectedServer.vlessLink.trim();
       if (link.isEmpty) {
         if (mounted) {
@@ -416,7 +406,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       final parser = V2rayURL(link: link);
 
-      // 4. Start
       await v2ray!.startV2Ray(
         remark: "CX VPN",
         config: parser.getFullConfiguration(),
@@ -462,7 +451,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       letterSpacing: -1.2),
                   children: const [
                     TextSpan(
-                        text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32))),
+                        text: 'VPN',
+                        style: TextStyle(color: Color(0xFFFF8A32))),
                   ],
                 ),
               ),
@@ -471,7 +461,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   GestureDetector(
                     onTap: widget.toggle,
                     child: _icon(
-                        d ? Icons.wb_sunny_outlined : Icons.nightlight_round, d),
+                        d ? Icons.wb_sunny_outlined : Icons.nightlight_round,
+                        d),
                   ),
                   const SizedBox(width: 8),
                   _icon(Icons.settings, d),
@@ -545,7 +536,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                               animation: _glitch,
                               builder: (c, w) => Transform.translate(
                                 offset: Offset(
-                                    math.sin(_glitch.value * math.pi * 4) * 8, 0),
+                                    math.sin(_glitch.value * math.pi * 4) * 8,
+                                    0),
                                 child: Container(
                                   width: 150,
                                   height: 150,
@@ -644,8 +636,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 15),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 13, vertical: 9),
                     decoration: BoxDecoration(
                       color: d
                           ? Colors.white.withOpacity(0.065)
@@ -664,7 +656,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           height: 7,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: isConnected ? con : const Color(0xFF9099AC),
+                            color:
+                                isConnected ? con : const Color(0xFF9099AC),
                             boxShadow: isConnected
                                 ? [
                                     BoxShadow(
@@ -677,7 +670,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         const SizedBox(width: 8),
                         Text(isConnected ? "Protected" : "Ready to connect",
                             style: TextStyle(
-                                fontSize: 11, color: isConnected ? con : mut)),
+                                fontSize: 11,
+                                color: isConnected ? con : mut)),
                       ],
                     ),
                   ),
@@ -699,7 +693,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       color: d ? Colors.white.withOpacity(0.1) : Colors.white,
                       borderRadius: BorderRadius.circular(15),
                       border: Border.all(
-                          color: d ? Colors.white.withOpacity(0.1) : Colors.black12),
+                          color: d
+                              ? Colors.white.withOpacity(0.1)
+                              : Colors.black12),
                     ),
                     child: Center(
                         child: Text(widget.selectedServer.flag,
@@ -787,12 +783,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.5),
+        color:
+            d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: d ? Colors.white.withOpacity(0.1) : Colors.white),
+        border:
+            Border.all(color: d ? Colors.white.withOpacity(0.1) : Colors.white),
       ),
-      child: Icon(ic, size: 22, color: d ? Colors.white : const Color(0xFF182239)),
+      child: Icon(ic,
+          size: 22, color: d ? Colors.white : const Color(0xFF182239)),
     );
   }
 
@@ -878,7 +876,8 @@ class ServersPage extends StatelessWidget {
                       width: 45,
                       height: 45,
                       decoration: BoxDecoration(
-                        color: d ? Colors.white.withOpacity(0.1) : Colors.white,
+                        color:
+                            d ? Colors.white.withOpacity(0.1) : Colors.white,
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Center(
@@ -951,7 +950,8 @@ class LoginScreen extends StatelessWidget {
                           children: const [
                             TextSpan(
                                 text: 'VPN',
-                                style: TextStyle(color: Color(0xFFFF8A32))),
+                                style:
+                                    TextStyle(color: Color(0xFFFF8A32))),
                           ],
                         ),
                       ),
@@ -974,7 +974,8 @@ class LoginScreen extends StatelessWidget {
                     ),
                     child: const Center(
                         child: Text("ϟ",
-                            style: TextStyle(fontSize: 43, color: Colors.white))),
+                            style: TextStyle(
+                                fontSize: 43, color: Colors.white))),
                   ),
                   const SizedBox(height: 25),
                   RichText(
@@ -1013,10 +1014,11 @@ class LoginScreen extends StatelessWidget {
                         _btn("Continue as Guest", Icons.person_outline, d, txt,
                             onLogin),
                         const SizedBox(height: 12),
-                        _btn("Continue with Google", Icons.g_mobiledata, d, txt,
-                            () {}),
+                        _btn("Continue with Google", Icons.g_mobiledata, d,
+                            txt, () {}),
                         const SizedBox(height: 12),
-                        _btn("Continue with Reddit", Icons.forum, d, txt, () {}),
+                        _btn("Continue with Reddit", Icons.forum, d, txt,
+                            () {}),
                       ],
                     ),
                   ),
@@ -1039,7 +1041,8 @@ class LoginScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
+          color:
+              d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
           border: Border.all(
               color: d ? Colors.white.withOpacity(0.14) : Colors.white),
           borderRadius: BorderRadius.circular(16),
@@ -1058,7 +1061,8 @@ class LoginScreen extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 14, fontWeight: FontWeight.w600, color: tc)),
             const Spacer(),
-            Icon(Icons.arrow_forward_ios, size: 16, color: tc.withOpacity(0.5)),
+            Icon(Icons.arrow_forward_ios,
+                size: 16, color: tc.withOpacity(0.5)),
           ],
         ),
       ),
@@ -1081,7 +1085,8 @@ class _SkyBackgroundState extends State<SkyBackground>
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(seconds: 15))
+    _c = AnimationController(
+        vsync: this, duration: const Duration(seconds: 15))
       ..repeat();
   }
 
@@ -1191,4 +1196,13 @@ class LeafP extends CustomPainter {
         ..quadraticBezierTo(7, 7, 0, 0);
 
       canvas.drawPath(pth, p);
-      canvas.rest
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant LeafP old) => old.progress != progress;
+}
+
+class TreeP extends CustomPainter {
+  final bool isDark;
