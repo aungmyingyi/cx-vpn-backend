@@ -1,54 +1,37 @@
 name: Build APK
+
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v4
+    
     - name: Set up Java
       uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '17'
+        
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
+        
     - name: Create missing platform folders
       run: flutter create --project-name cx_vpn .
-    - name: Inject VPN Service
-      run: |
-        python3 - <<'EOF'
-        import os
-        f='android/app/src/main/AndroidManifest.xml'
-        if os.path.exists(f):
-            c=open(f,'r').read()
-            s='<service android:name="com.github.xiaokang.flutter_v2ray.v2ray.V2rayService" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="false"><intent-filter><action android:name="android.net.VpnService"/></intent-filter></service>'
-            if 'V2rayService' not in c:
-                c=c.replace('</application>', s+'</application>')
-                open(f,'w').write(c)
-        EOF
-    - name: Fix Android Gradle
-      run: |
-        python3 - <<'EOF'
-        import os, re
-        paths = ['android/app/build.gradle', 'android/app/build.gradle.kts']
-        f = next((p for p in paths if os.path.exists(p)), None)
-        if f:
-            c = open(f).read()
-            c = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk 34', c)
-            c = re.sub(r'minSdk\s*=?\s*flutter\.minSdkVersion', 'minSdk 21', c)
-            if 'ndkVersion' not in c:
-                c = c.replace('android {', 'android {\n    ndkVersion "25.1.8937393"')
-            open(f, 'w').write(c)
-        EOF
-    - name: Get Dependencies
+      
+    - name: Install dependencies
       run: flutter pub get
+      
     - name: Build APK
       run: flutter build apk --release
+      
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
