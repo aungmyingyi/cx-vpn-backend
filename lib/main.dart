@@ -80,7 +80,7 @@ class _CXVpnAppState extends State<CXVpnApp> {
 }
 
 // ==========================================
-// MAIN SCREEN (Navigation & State)
+// MAIN SCREEN
 // ==========================================
 class MainScreen extends StatefulWidget {
   final bool isDarkMode;
@@ -101,7 +101,6 @@ class _MainScreenState extends State<MainScreen> {
   ServerModel? selectedServer;
   bool isLoadingServers = true;
 
-  // ⚠️ မင်း ပေးလိုက်တဲ့ Raw Link ကို ဒီမှာ ထည့်ထားပါတယ် ⚠️
   final String serverListUrl = "https://raw.githubusercontent.com/aungmyingyi/cx-vpn-backend/refs/heads/main/servers.json";
 
   @override
@@ -125,7 +124,6 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {
         isLoadingServers = false;
       });
-      debugPrint("Error fetching servers: $e");
     }
 
     Future.delayed(const Duration(milliseconds: 1500), () {
@@ -166,7 +164,7 @@ class _MainScreenState extends State<MainScreen> {
       return Scaffold(
         backgroundColor: isDark ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
         body: Center(
-          child: Text("No servers available.\nPlease check your internet connection.", textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+          child: Text("No servers available.\nCheck your internet.", textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
         ),
       );
     }
@@ -254,7 +252,7 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 // ==========================================
-// HOME PAGE (VPN LOGIC)
+// HOME PAGE
 // ==========================================
 class HomePage extends StatefulWidget {
   final bool isDark;
@@ -279,22 +277,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   bool isConnecting = false;
   late AnimationController _spinController;
   late AnimationController _glitchController;
-  late FlutterV2ray flutterV2ray;
+  FlutterV2ray? flutterV2ray;
 
   @override
   void initState() {
     super.initState();
     _spinController = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
     _glitchController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
-    
-    flutterV2ray = FlutterV2ray(onStatusChanged: (status) {
-      if (mounted) {
-        setState(() {
-          isConnected = status.state == 'CONNECTED';
-          isConnecting = false;
-        });
-      }
-    });
   }
 
   @override
@@ -317,31 +306,32 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      FlutterV2ray v2ray = FlutterV2ray(
+      flutterV2ray = FlutterV2ray(
         onStatusChanged: (status) {
-          if (status.state == 'CONNECTED') {
-            setState(() { isConnected = true; isConnecting = false; });
-          } else if (status.state == 'DISCONNECTED') {
-            setState(() { isConnected = false; isConnecting = false; });
+          if (mounted) {
+            // String Comparison ကို အသုံးပြုပြီး Error မတက်အောင် ကာကွယ်ထားပါတယ်
+            if (status.state == 'CONNECTED') {
+              setState(() { isConnected = true; isConnecting = false; });
+            } else if (status.state == 'DISCONNECTED') {
+              setState(() { isConnected = false; isConnecting = false; });
+            }
           }
         },
       );
 
-      await v2ray.initializeV2Ray();
+      await flutterV2ray!.initializeV2Ray();
       
       // Error မတက်စေရန် V2RayURL မှ V2rayURL သို့ ပြောင်းထားပါတယ်
       V2rayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
-      await v2ray.startV2Ray(
+      await flutterV2ray!.startV2Ray(
         remark: "CX VPN",
         config: parser.getFullConfiguration(),
         proxyOnly: false,
         bypassLAN: true,
-        blockedApps: [],
-        bypassApps: [],
       );
 
     } else {
-      await flutterV2ray.stopV2Ray();
+      await flutterV2ray?.stopV2Ray();
       setState(() { isConnected = false; });
     }
   }
@@ -418,7 +408,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ],
           ),
           
-          // Connection Area (Centered)
+          // Connection Area
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 40),
             child: Center(
@@ -431,7 +421,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // Glitch Effects (Only visible when connected)
                           if (isConnected) ...[
                             AnimatedBuilder(
                               animation: _glitchController,
@@ -465,7 +454,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ],
                           
-                          // Main Squircle Button
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
                             width: 150, height: 150,
@@ -508,7 +496,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   Text(isConnected ? "Your connection is secured" : "Tap to connect securely", style: TextStyle(fontSize: 12, color: mutedColor)),
                   
                   const SizedBox(height: 15),
-                  // Status Pill
                   RepaintBoundary(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
@@ -579,7 +566,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
           const SizedBox(height: 13),
 
-          // Stats Grid
           Row(
             children: [
               _buildStatCard("0 B", "Downloaded", Icons.arrow_downward, widget.isDark, textColor, mutedColor),
@@ -592,7 +578,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
           const SizedBox(height: 15),
 
-          // Premium Banner
           RepaintBoundary(
             child: GlassContainer(
               isDark: widget.isDark,
