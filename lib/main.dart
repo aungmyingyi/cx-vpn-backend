@@ -1206,3 +1206,59 @@ class LeafP extends CustomPainter {
 
 class TreeP extends CustomPainter {
   final bool isDark;
+
+  TreeP({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = isDark
+          ? Colors.black.withOpacity(0.85)
+          : const Color(0xFF0F172A).withOpacity(0.6)
+      ..style = PaintingStyle.fill;
+
+    double w = size.width;
+    double h = size.height;
+
+    final pth = Path()
+      ..moveTo(w * 0.35, h)
+      ..cubicTo(w * 0.37, h * 0.8, w * 0.4, h * 0.63, w * 0.25, h * 0.46)
+      ..cubicTo(w * 0.2, h * 0.4, w * 0.1, h * 0.33, w * 0.05, h * 0.26)
+      ..cubicTo(w * 0.15, h * 0.3, w * 0.25, h * 0.36, w * 0.35, h * 0.43)
+      ..cubicTo(w * 0.37, h * 0.33, w * 0.32, h * 0.2, w * 0.4, h * 0.06)
+      ..cubicTo(w * 0.42, h * 0.2, w * 0.45, h * 0.33, w * 0.47, h * 0.46)
+      ..cubicTo(w * 0.57, h * 0.33, w * 0.7, h * 0.23, w * 0.85, h * 0.16)
+      ..cubicTo(w * 0.72, h * 0.26, w * 0.62, h * 0.4, w * 0.57, h * 0.53)
+      ..cubicTo(w * 0.65, h * 0.6, w * 0.75, h * 0.66, w * 0.9, h * 0.73)
+      ..cubicTo(w * 0.7, h * 0.7, w * 0.6, h * 0.63, w * 0.52, h * 0.56)
+      ..cubicTo(w * 0.5, h * 0.66, w * 0.52, h * 0.8, w * 0.55, h)
+      ..close();
+
+    canvas.drawPath(pth, p);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => true;
+}
+
+Widget _glass(bool d, EdgeInsets p, Widget c) {
+  return Container(
+    padding: p,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(
+          color: d ? Colors.white.withOpacity(0.15) : Colors.white, width: 1.5),
+      color: d
+          ? const Color(0xFF1E293B).withOpacity(0.6)
+          : Colors.white.withOpacity(0.7),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          spreadRadius: 1,
+        )
+      ],
+    ),
+    child: c,
+  );
+}
