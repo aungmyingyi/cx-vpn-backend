@@ -17,14 +17,14 @@ class ServerModel {
     required this.flag,
     required this.vlessLink,
   });
-  
+
   factory ServerModel.fromJson(Map<String, dynamic> j) => ServerModel(
-    id: j['id'] ?? '',
-    name: j['name'] ?? 'Unknown',
-    country: j['country'] ?? '',
-    flag: j['flag'] ?? '🌐',
-    vlessLink: j['vlessLink'] ?? '',
-  );
+        id: j['id']?.toString() ?? '',
+        name: j['name']?.toString() ?? 'Unknown',
+        country: j['country']?.toString() ?? '',
+        flag: j['flag']?.toString() ?? '🌐',
+        vlessLink: j['vlessLink']?.toString() ?? '',
+      );
 }
 
 class CXVpnApp extends StatefulWidget {
@@ -72,84 +72,155 @@ class _MainScreenState extends State<MainScreen> {
   List<ServerModel> servers = [];
   ServerModel? selectedServer;
   bool isLoading = true;
+  String? errorMsg;
 
-  final String url = "https://raw.githubusercontent.com/aungmyingyi/cx-vpn-backend/refs/heads/main/servers.json";
+  final String url =
+      "https://raw.githubusercontent.com/aungmyingyi/cx-vpn-backend/refs/heads/main/servers.json";
 
   @override
   void initState() {
     super.initState();
+
+    // Splash timer ကို fetch နဲ့ သီးသန့်ထားပါ
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => isSplash = false);
+    });
+
     fetch();
   }
 
   Future<void> fetch() async {
     try {
-      final res = await http.get(Uri.parse(url));
+      final res = await http.get(Uri.parse(url)).timeout(
+            const Duration(seconds: 15),
+          );
       if (res.statusCode == 200) {
-        List<dynamic> data = json.decode(res.body);
+        final decoded = json.decode(res.body);
+        if (decoded is List) {
+          final list = decoded
+              .whereType<Map<String, dynamic>>()
+              .map(ServerModel.fromJson)
+              .toList();
+          if (mounted) {
+            setState(() {
+              servers = list;
+              if (servers.isNotEmpty) selectedServer = servers[0];
+              isLoading = false;
+              errorMsg = null;
+            });
+          }
+          return;
+        }
+      }
+      if (mounted) {
         setState(() {
-          servers = data.map((j) => ServerModel.fromJson(j)).toList();
-          if (servers.isNotEmpty) selectedServer = servers[0];
           isLoading = false;
+          errorMsg = "Failed to load servers (${res.statusCode}).";
         });
       }
     } catch (e) {
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMsg = "Network error. Please check your internet.";
+        });
+      }
     }
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) setState(() => isSplash = false);
-    });
-  }
-
-  // Glass Container Helper Method moved inside State class for proper scoping
-  Widget _glass(bool d, EdgeInsets p, Widget c) {
-    return Container(
-      padding: p,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: d ? Colors.white.withOpacity(0.15) : Colors.white, width: 1.5),
-        color: d ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white.withOpacity(0.7),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            spreadRadius: 1,
-          )
-        ],
-      ),
-      child: c,
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     bool d = widget.isDark;
-    if (isSplash || isLoading) {
+
+    // Splash screen
+    if (isSplash) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('CX VPN', style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: d ? Colors.white : Colors.black)),
+              Text('CX VPN',
+                  style: TextStyle(
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                      color: d ? Colors.white : Colors.black)),
               const SizedBox(height: 20),
               const CircularProgressIndicator(color: Color(0xFFFF8A32)),
               const SizedBox(height: 20),
-              Text(isLoading ? 'Syncing Servers...' : 'POWERED BY CEREBRA X', style: TextStyle(fontSize: 10, color: d ? Colors.grey : Colors.black54)),
+              Text('POWERED BY CEREBRA X',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: d ? Colors.grey : Colors.black54)),
             ],
           ),
         ),
       );
     }
 
-    if (selectedServer == null) {
+    // Loading
+    if (isLoading) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
-        body: Center(child: Text("No servers.\nCheck internet.", textAlign: TextAlign.center, style: TextStyle(color: d ? Colors.white : Colors.black))),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(color: Color(0xFFFF8A32)),
+              const SizedBox(height: 20),
+              Text('Syncing Servers...',
+                  style: TextStyle(color: d ? Colors.white : Colors.black)),
+            ],
+          ),
+        ),
       );
     }
 
+    // No servers / error
+    if (selectedServer == null) {
+      return Scaffold(
+        backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.wifi_off,
+                    size: 56, color: d ? Colors.white54 : Colors.black45),
+                const SizedBox(height: 16),
+                Text(
+                  errorMsg ?? "No servers available.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: d ? Colors.white : Colors.black),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      isLoading = true;
+                      errorMsg = null;
+                    });
+                    fetch();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF8A32),
+                  ),
+                  child: const Text("Retry"),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Login
     if (!isLoggedIn) {
-      return LoginScreen(isDark: d, onLogin: () => setState(() => isLoggedIn = true));
+      return LoginScreen(
+        isDark: d,
+        onLogin: () => setState(() => isLoggedIn = true),
+      );
     }
 
     return Scaffold(
@@ -162,29 +233,42 @@ class _MainScreenState extends State<MainScreen> {
               index: pageIndex,
               children: [
                 HomePage(
-                  isDark: d, 
-                  toggle: widget.toggle, 
-                  selectedServer: selectedServer!, 
+                  isDark: d,
+                  toggle: widget.toggle,
+                  selectedServer: selectedServer!,
                   onNav: () => setState(() => pageIndex = 1),
-                  glassBuilder: _glass,
                 ),
-                ServersPage(isDark: d, servers: servers, selected: selectedServer!, onSelect: (s) => setState(() { selectedServer = s; pageIndex = 0; })),
+                ServersPage(
+                  isDark: d,
+                  servers: servers,
+                  selected: selectedServer!,
+                  onSelect: (s) => setState(() {
+                    selectedServer = s;
+                    pageIndex = 0;
+                  }),
+                ),
                 const Center(child: Text("Settings Page (Coming Soon)")),
                 const Center(child: Text("Premium Page (Coming Soon)")),
               ],
             ),
           ),
           Positioned(
-            bottom: 20, left: 20, right: 20,
-            child: _glass(d, const EdgeInsets.symmetric(vertical: 8, horizontal: 8), Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _nav(0, Icons.home_outlined, "Home", d),
-                _nav(1, Icons.public, "Servers", d),
-                _nav(2, Icons.settings, "Settings", d),
-                _nav(3, Icons.workspace_premium, "Premium", d),
-              ],
-            )),
+            bottom: 20,
+            left: 20,
+            right: 20,
+            child: _glass(
+              d,
+              const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _nav(0, Icons.home_outlined, "Home", d),
+                  _nav(1, Icons.public, "Servers", d),
+                  _nav(2, Icons.settings, "Settings", d),
+                  _nav(3, Icons.workspace_premium, "Premium", d),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -197,15 +281,30 @@ class _MainScreenState extends State<MainScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
         decoration: BoxDecoration(
-          color: pageIndex == i ? const Color(0xFFFF8A32).withOpacity(0.15) : Colors.transparent,
+          color: pageIndex == i
+              ? const Color(0xFFFF8A32).withOpacity(0.15)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(ic, size: 22, color: pageIndex == i ? const Color(0xFFFFB66D) : (d ? const Color(0xFF929DB5) : const Color(0xFF65718A))),
+            Icon(ic,
+                size: 22,
+                color: pageIndex == i
+                    ? const Color(0xFFFFB66D)
+                    : (d
+                        ? const Color(0xFF929DB5)
+                        : const Color(0xFF65718A))),
             const SizedBox(height: 4),
-            Text(t, style: TextStyle(fontSize: 10, color: pageIndex == i ? const Color(0xFFFFB66D) : (d ? const Color(0xFF929DB5) : const Color(0xFF65718A)))),
+            Text(t,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: pageIndex == i
+                        ? const Color(0xFFFFB66D)
+                        : (d
+                            ? const Color(0xFF929DB5)
+                            : const Color(0xFF65718A)))),
           ],
         ),
       ),
@@ -218,7 +317,6 @@ class HomePage extends StatefulWidget {
   final VoidCallback toggle;
   final ServerModel selectedServer;
   final VoidCallback onNav;
-  final Widget Function(bool, EdgeInsets, Widget) glassBuilder;
 
   const HomePage({
     super.key,
@@ -226,7 +324,6 @@ class HomePage extends StatefulWidget {
     required this.toggle,
     required this.selectedServer,
     required this.onNav,
-    required this.glassBuilder,
   });
 
   @override
@@ -243,8 +340,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _spin = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
-    _glitch = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
+    _spin = AnimationController(vsync: this, duration: const Duration(seconds: 6))
+      ..repeat();
+    _glitch = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+
+    // V2Ray instance ကို တစ်ခါတည်း create လုပ်ပါ
+    v2ray = FlutterV2ray(
+      onStatusChanged: (status) {
+        if (!mounted) return;
+        final connected = status.state == 'CONNECTED';
+        setState(() {
+          isConnected = connected;
+          isConnecting = false;
+        });
+        if (connected) {
+          if (!_glitch.isAnimating) _glitch.repeat(reverse: true);
+        } else {
+          _glitch.stop();
+        }
+      },
+    );
   }
 
   @override
@@ -256,34 +374,65 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Future<void> connect() async {
     if (isConnecting) return;
-    if (!isConnected) {
-      setState(() => isConnecting = true);
-      v2ray = FlutterV2ray(onStatusChanged: (s) {
-        if (mounted) {
-          setState(() {
-            isConnected = s.state == 'CONNECTED';
-            isConnecting = false;
-          });
-        }
-      });
 
-      if (!await v2ray!.requestPermission()) {
-        setState(() => isConnecting = false);
+    // Disconnect
+    if (isConnected) {
+      try {
+        await v2ray?.stopV2Ray();
+      } catch (_) {}
+      if (mounted) setState(() => isConnected = false);
+      return;
+    }
+
+    setState(() => isConnecting = true);
+
+    try {
+      // 1. Initialize
+      await v2ray!.initializeV2Ray();
+
+      // 2. Request permission
+      final granted = await v2ray!.requestPermission();
+      if (!granted) {
+        if (mounted) {
+          setState(() => isConnecting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('VPN permission denied.')),
+          );
+        }
         return;
       }
 
-      await v2ray!.initializeV2Ray();
-      
-      V2rayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
-      
+      // 3. Parse link
+      final link = widget.selectedServer.vlessLink.trim();
+      if (link.isEmpty) {
+        if (mounted) {
+          setState(() => isConnecting = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid server configuration.')),
+          );
+        }
+        return;
+      }
+
+      final parser = V2rayURL(link: link);
+
+      // 4. Start
       await v2ray!.startV2Ray(
         remark: "CX VPN",
         config: parser.getFullConfiguration(),
         proxyOnly: false,
       );
-    } else {
-      await v2ray?.stopV2Ray();
-      setState(() => isConnected = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isConnecting = false;
+          isConnected = false;
+        });
+        _glitch.stop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Connection failed: $e')),
+        );
+      }
     }
   }
 
@@ -306,9 +455,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               RichText(
                 text: TextSpan(
                   text: 'CX ',
-                  style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: txt, letterSpacing: -1.2),
+                  style: TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.w900,
+                      color: txt,
+                      letterSpacing: -1.2),
                   children: const [
-                    TextSpan(text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32))),
+                    TextSpan(
+                        text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32))),
                   ],
                 ),
               ),
@@ -316,7 +470,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 children: [
                   GestureDetector(
                     onTap: widget.toggle,
-                    child: _icon(d ? Icons.wb_sunny_outlined : Icons.nightlight_round, d),
+                    child: _icon(
+                        d ? Icons.wb_sunny_outlined : Icons.nightlight_round, d),
                   ),
                   const SizedBox(width: 8),
                   _icon(Icons.settings, d),
@@ -331,14 +486,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("WELCOME BACK", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: mut)),
+                  Text("WELCOME BACK",
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                          color: mut)),
                   const SizedBox(height: 9),
                   RichText(
                     text: TextSpan(
                       text: 'Your digital\nworld, ',
-                      style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, height: 1.2, color: txt),
+                      style: TextStyle(
+                          fontSize: 27,
+                          fontWeight: FontWeight.bold,
+                          height: 1.2,
+                          color: txt),
                       children: const [
-                        TextSpan(text: 'protected.', style: TextStyle(color: Color(0xFFFFB66D))),
+                        TextSpan(
+                            text: 'protected.',
+                            style: TextStyle(color: Color(0xFFFFB66D))),
                       ],
                     ),
                   ),
@@ -350,12 +516,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 decoration: BoxDecoration(
                   color: const Color(0xFFFF8A32).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFFF8A32).withOpacity(0.3)),
+                  border: Border.all(
+                      color: const Color(0xFFFF8A32).withOpacity(0.3)),
                 ),
                 child: Center(
                   child: RotationTransition(
                     turns: _spin,
-                    child: const Icon(Icons.settings_input_component, color: Color(0xFFFFB66D), size: 30),
+                    child: const Icon(Icons.settings_input_component,
+                        color: Color(0xFFFFB66D), size: 30),
                   ),
                 ),
               ),
@@ -376,13 +544,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             AnimatedBuilder(
                               animation: _glitch,
                               builder: (c, w) => Transform.translate(
-                                offset: Offset(math.sin(_glitch.value * math.pi * 4) * 8, 0),
+                                offset: Offset(
+                                    math.sin(_glitch.value * math.pi * 4) * 8, 0),
                                 child: Container(
                                   width: 150,
                                   height: 150,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(36),
-                                    border: Border.all(color: Colors.cyanAccent.withOpacity(0.8), width: 3),
+                                    border: Border.all(
+                                        color: Colors.cyanAccent
+                                            .withOpacity(0.8),
+                                        width: 3),
                                   ),
                                 ),
                               ),
@@ -390,13 +562,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             AnimatedBuilder(
                               animation: _glitch,
                               builder: (c, w) => Transform.translate(
-                                offset: Offset(math.cos(_glitch.value * math.pi * 4) * -8, 0),
+                                offset: Offset(
+                                    math.cos(_glitch.value * math.pi * 4) * -8,
+                                    0),
                                 child: Container(
                                   width: 150,
                                   height: 150,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(36),
-                                    border: Border.all(color: Colors.pinkAccent.withOpacity(0.8), width: 3),
+                                    border: Border.all(
+                                        color: Colors.pinkAccent
+                                            .withOpacity(0.8),
+                                        width: 3),
                                   ),
                                 ),
                               ),
@@ -408,14 +585,27 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             height: 150,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(36),
-                              color: isConnected ? con.withOpacity(0.15) : (d ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.7)),
+                              color: isConnected
+                                  ? con.withOpacity(0.15)
+                                  : (d
+                                      ? Colors.white.withOpacity(0.08)
+                                      : Colors.white.withOpacity(0.7)),
                               border: Border.all(
-                                color: isConnected ? con : (d ? Colors.white.withOpacity(0.3) : Colors.white),
+                                color: isConnected
+                                    ? con
+                                    : (d
+                                        ? Colors.white.withOpacity(0.3)
+                                        : Colors.white),
                                 width: 1.5,
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: isConnected ? con.withOpacity(0.4) : (d ? const Color(0xFFFF8A32).withOpacity(0.15) : Colors.black.withOpacity(0.05)),
+                                  color: isConnected
+                                      ? con.withOpacity(0.4)
+                                      : (d
+                                          ? const Color(0xFFFF8A32)
+                                              .withOpacity(0.15)
+                                          : Colors.black.withOpacity(0.05)),
                                   blurRadius: 45,
                                   spreadRadius: 5,
                                 ),
@@ -423,8 +613,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                             child: Center(
                               child: isConnecting
-                                  ? const CircularProgressIndicator(color: Color(0xFFFF8A32))
-                                  : Icon(Icons.power_settings_new, size: 42, color: isConnected ? con : txt),
+                                  ? const CircularProgressIndicator(
+                                      color: Color(0xFFFF8A32))
+                                  : Icon(Icons.power_settings_new,
+                                      size: 42,
+                                      color: isConnected ? con : txt),
                             ),
                           ),
                         ],
@@ -433,18 +626,35 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 25),
                   Text(
-                    isConnecting ? "CONNECTING..." : (isConnected ? "CONNECTED" : "NOT CONNECTED"),
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 2, color: isConnected ? con : txt),
+                    isConnecting
+                        ? "CONNECTING..."
+                        : (isConnected ? "CONNECTED" : "NOT CONNECTED"),
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                        color: isConnected ? con : txt),
                   ),
                   const SizedBox(height: 7),
-                  Text(isConnected ? "Your connection is secured" : "Tap to connect securely", style: TextStyle(fontSize: 12, color: mut)),
+                  Text(
+                    isConnected
+                        ? "Your connection is secured"
+                        : "Tap to connect securely",
+                    style: TextStyle(fontSize: 12, color: mut),
+                  ),
                   const SizedBox(height: 15),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
                     decoration: BoxDecoration(
-                      color: d ? Colors.white.withOpacity(0.065) : Colors.white.withOpacity(0.7),
+                      color: d
+                          ? Colors.white.withOpacity(0.065)
+                          : Colors.white.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: d ? Colors.white.withOpacity(0.14) : Colors.black12),
+                      border: Border.all(
+                          color: d
+                              ? Colors.white.withOpacity(0.14)
+                              : Colors.black12),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -455,11 +665,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: isConnected ? con : const Color(0xFF9099AC),
-                            boxShadow: isConnected ? [BoxShadow(color: con.withOpacity(0.8), blurRadius: 12)] : [],
+                            boxShadow: isConnected
+                                ? [
+                                    BoxShadow(
+                                        color: con.withOpacity(0.8),
+                                        blurRadius: 12)
+                                  ]
+                                : [],
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(isConnected ? "Protected" : "Ready to connect", style: TextStyle(fontSize: 11, color: isConnected ? con : mut)),
+                        Text(isConnected ? "Protected" : "Ready to connect",
+                            style: TextStyle(
+                                fontSize: 11, color: isConnected ? con : mut)),
                       ],
                     ),
                   ),
@@ -469,7 +687,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
           GestureDetector(
             onTap: widget.onNav,
-            child: widget.glassBuilder(
+            child: _glass(
               d,
               const EdgeInsets.all(16),
               Row(
@@ -480,20 +698,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     decoration: BoxDecoration(
                       color: d ? Colors.white.withOpacity(0.1) : Colors.white,
                       borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: d ? Colors.white.withOpacity(0.1) : Colors.black12),
+                      border: Border.all(
+                          color: d ? Colors.white.withOpacity(0.1) : Colors.black12),
                     ),
-                    child: Center(child: Text(widget.selectedServer.flag, style: const TextStyle(fontSize: 22))),
+                    child: Center(
+                        child: Text(widget.selectedServer.flag,
+                            style: const TextStyle(fontSize: 22))),
                   ),
                   const SizedBox(width: 15),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("YOUR LOCATION", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1, color: mut)),
+                        Text("YOUR LOCATION",
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                                color: mut)),
                         const SizedBox(height: 5),
-                        Text(widget.selectedServer.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: txt)),
+                        Text(widget.selectedServer.name,
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: txt)),
                         const SizedBox(height: 3),
-                        Text(widget.selectedServer.country, style: TextStyle(fontSize: 11, color: mut)),
+                        Text(widget.selectedServer.country,
+                            style: TextStyle(fontSize: 11, color: mut)),
                       ],
                     ),
                   ),
@@ -513,7 +744,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 15),
-          widget.glassBuilder(
+          _glass(
             d,
             const EdgeInsets.all(16),
             Row(
@@ -521,17 +752,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 Container(
                   width: 45,
                   height: 45,
-                  decoration: BoxDecoration(color: const Color(0xFFFF8A32).withOpacity(0.15), borderRadius: BorderRadius.circular(15)),
-                  child: const Icon(Icons.workspace_premium, color: Color(0xFFFFB66D)),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFFF8A32).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(15)),
+                  child: const Icon(Icons.workspace_premium,
+                      color: Color(0xFFFFB66D)),
                 ),
                 const SizedBox(width: 15),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("CX Premium", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: txt)),
+                      Text("CX Premium",
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: txt)),
                       const SizedBox(height: 5),
-                      Text("Unlock your full potential", style: TextStyle(fontSize: 11, color: mut)),
+                      Text("Unlock your full potential",
+                          style: TextStyle(fontSize: 11, color: mut)),
                     ],
                   ),
                 ),
@@ -550,7 +789,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       decoration: BoxDecoration(
         color: d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: d ? Colors.white.withOpacity(0.1) : Colors.white),
+        border: Border.all(
+            color: d ? Colors.white.withOpacity(0.1) : Colors.white),
       ),
       child: Icon(ic, size: 22, color: d ? Colors.white : const Color(0xFF182239)),
     );
@@ -558,7 +798,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _stat(String v, String l, IconData ic, bool d, Color t, Color m) {
     return Expanded(
-      child: widget.glassBuilder(
+      child: _glass(
         d,
         const EdgeInsets.all(15),
         Column(
@@ -566,7 +806,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           children: [
             Icon(ic, color: const Color(0xFFFFB66D), size: 19),
             const SizedBox(height: 8),
-            Text(v, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: t)),
+            Text(v,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold, color: t)),
             const SizedBox(height: 4),
             Text(l, style: TextStyle(fontSize: 10, color: m)),
           ],
@@ -602,9 +844,12 @@ class ServersPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Choose Server", style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, color: txt)),
+          Text("Choose Server",
+              style: TextStyle(
+                  fontSize: 27, fontWeight: FontWeight.bold, color: txt)),
           const SizedBox(height: 5),
-          Text("Select a location for your connection.", style: TextStyle(fontSize: 12, color: mut)),
+          Text("Select a location for your connection.",
+              style: TextStyle(fontSize: 12, color: mut)),
           const SizedBox(height: 25),
           ...servers.map((s) {
             bool isSel = s.id == selected.id;
@@ -614,10 +859,16 @@ class ServersPage extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: isSel ? const Color(0xFFFF8A32).withOpacity(0.15) : (d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6)),
+                  color: isSel
+                      ? const Color(0xFFFF8A32).withOpacity(0.15)
+                      : (d
+                          ? Colors.white.withOpacity(0.05)
+                          : Colors.white.withOpacity(0.6)),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSel ? const Color(0xFFFF8A32) : (d ? Colors.white.withOpacity(0.1) : Colors.black12),
+                    color: isSel
+                        ? const Color(0xFFFF8A32)
+                        : (d ? Colors.white.withOpacity(0.1) : Colors.black12),
                     width: 1.5,
                   ),
                 ),
@@ -630,28 +881,36 @@ class ServersPage extends StatelessWidget {
                         color: d ? Colors.white.withOpacity(0.1) : Colors.white,
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      child: Center(child: Text(s.flag, style: const TextStyle(fontSize: 22))),
+                      child: Center(
+                          child: Text(s.flag,
+                              style: const TextStyle(fontSize: 22))),
                     ),
                     const SizedBox(width: 15),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(s.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: txt)),
+                          Text(s.name,
+                              style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: txt)),
                           const SizedBox(height: 4),
-                          Text(s.country, style: TextStyle(fontSize: 11, color: mut)),
+                          Text(s.country,
+                              style: TextStyle(fontSize: 11, color: mut)),
                         ],
                       ),
                     ),
                     if (isSel)
-                      const Icon(Icons.check_circle, color: Color(0xFFFF8A32), size: 24)
+                      const Icon(Icons.check_circle,
+                          color: Color(0xFFFF8A32), size: 24)
                     else
                       Icon(Icons.radio_button_unchecked, color: mut, size: 24),
                   ],
                 ),
               ),
             );
-          }),
+          }).toList(),
         ],
       ),
     );
@@ -663,25 +922,6 @@ class LoginScreen extends StatelessWidget {
   final VoidCallback onLogin;
 
   const LoginScreen({super.key, required this.isDark, required this.onLogin});
-
-  Widget _glass(bool d, EdgeInsets p, Widget c) {
-    return Container(
-      padding: p,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: d ? Colors.white.withOpacity(0.15) : Colors.white, width: 1.5),
-        color: d ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white.withOpacity(0.7),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            spreadRadius: 1,
-          )
-        ],
-      ),
-      child: c,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -704,15 +944,21 @@ class LoginScreen extends StatelessWidget {
                       RichText(
                         text: TextSpan(
                           text: 'CX ',
-                          style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: txt),
+                          style: TextStyle(
+                              fontSize: 23,
+                              fontWeight: FontWeight.w900,
+                              color: txt),
                           children: const [
-                            TextSpan(text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32))),
+                            TextSpan(
+                                text: 'VPN',
+                                style: TextStyle(color: Color(0xFFFF8A32))),
                           ],
                         ),
                       ),
                       _glass(
                         d,
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         Text("EN", style: TextStyle(fontSize: 12, color: txt)),
                       ),
                     ],
@@ -723,23 +969,33 @@ class LoginScreen extends StatelessWidget {
                     height: 76,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(26),
-                      gradient: const LinearGradient(colors: [Color(0xFFFFBD76), Color(0xFFFF7929)]),
+                      gradient: const LinearGradient(
+                          colors: [Color(0xFFFFBD76), Color(0xFFFF7929)]),
                     ),
-                    child: const Center(child: Text("ϟ", style: TextStyle(fontSize: 43, color: Colors.white))),
+                    child: const Center(
+                        child: Text("ϟ",
+                            style: TextStyle(fontSize: 43, color: Colors.white))),
                   ),
                   const SizedBox(height: 25),
                   RichText(
                     textAlign: TextAlign.center,
                     text: TextSpan(
                       text: 'Your internet.\n',
-                      style: TextStyle(fontSize: 35, fontWeight: FontWeight.bold, height: 1.15, color: txt),
+                      style: TextStyle(
+                          fontSize: 35,
+                          fontWeight: FontWeight.bold,
+                          height: 1.15,
+                          color: txt),
                       children: const [
-                        TextSpan(text: 'Your freedom.', style: TextStyle(color: Color(0xFFFFB66D))),
+                        TextSpan(
+                            text: 'Your freedom.',
+                            style: TextStyle(color: Color(0xFFFFB66D))),
                       ],
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Text("Secure, private and connected.", style: TextStyle(color: mut)),
+                  Text("Secure, private and connected.",
+                      style: TextStyle(color: mut)),
                   const Spacer(),
                   _glass(
                     d,
@@ -747,18 +1003,27 @@ class LoginScreen extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("GET STARTED", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: mut)),
+                        Text("GET STARTED",
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
+                                color: mut)),
                         const SizedBox(height: 15),
-                        _btn("Continue as Guest", Icons.person_outline, d, txt, onLogin),
+                        _btn("Continue as Guest", Icons.person_outline, d, txt,
+                            onLogin),
                         const SizedBox(height: 12),
-                        _btn("Continue with Google", Icons.g_mobiledata, d, txt, () {}),
+                        _btn("Continue with Google", Icons.g_mobiledata, d, txt,
+                            () {}),
                         const SizedBox(height: 12),
                         _btn("Continue with Reddit", Icons.forum, d, txt, () {}),
                       ],
                     ),
                   ),
                   const Spacer(),
-                  Text("POWERED BY CEREBRA X", style: TextStyle(fontSize: 10, letterSpacing: 2, color: mut)),
+                  Text("POWERED BY CEREBRA X",
+                      style: TextStyle(
+                          fontSize: 10, letterSpacing: 2, color: mut)),
                 ],
               ),
             ),
@@ -775,18 +1040,23 @@ class LoginScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
-          border: Border.all(color: d ? Colors.white.withOpacity(0.14) : Colors.white),
+          border: Border.all(
+              color: d ? Colors.white.withOpacity(0.14) : Colors.white),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: d ? Colors.white.withOpacity(0.1) : Colors.white, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(
+                  color: d ? Colors.white.withOpacity(0.1) : Colors.white,
+                  borderRadius: BorderRadius.circular(12)),
               child: Icon(ic, size: 20, color: tc),
             ),
             const SizedBox(width: 13),
-            Text(t, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: tc)),
+            Text(t,
+                style: TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600, color: tc)),
             const Spacer(),
             Icon(Icons.arrow_forward_ios, size: 16, color: tc.withOpacity(0.5)),
           ],
@@ -804,13 +1074,15 @@ class SkyBackground extends StatefulWidget {
   State<SkyBackground> createState() => _SkyBackgroundState();
 }
 
-class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProviderStateMixin {
+class _SkyBackgroundState extends State<SkyBackground>
+    with SingleTickerProviderStateMixin {
   late AnimationController _c;
 
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(seconds: 15))..repeat();
+    _c = AnimationController(vsync: this, duration: const Duration(seconds: 15))
+      ..repeat();
   }
 
   @override
@@ -829,8 +1101,16 @@ class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProvider
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: d
-              ? [const Color(0xFF020513), const Color(0xFF0A1128), const Color(0xFF192542)]
-              : [const Color(0xFF4FACFE), const Color(0xFF00F2FE), const Color(0xFFE0F6FF)],
+              ? [
+                  const Color(0xFF020513),
+                  const Color(0xFF0A1128),
+                  const Color(0xFF192542)
+                ]
+              : [
+                  const Color(0xFF4FACFE),
+                  const Color(0xFF00F2FE),
+                  const Color(0xFFE0F6FF)
+                ],
         ),
       ),
       child: Stack(
@@ -847,7 +1127,9 @@ class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProvider
                 color: d ? Colors.white : const Color(0xFFFFDB58),
                 boxShadow: [
                   BoxShadow(
-                    color: d ? Colors.white.withOpacity(0.3) : const Color(0xFFFFDB58).withOpacity(0.6),
+                    color: d
+                        ? Colors.white.withOpacity(0.3)
+                        : const Color(0xFFFFDB58).withOpacity(0.6),
                     blurRadius: 40,
                     spreadRadius: 10,
                   )
@@ -858,7 +1140,8 @@ class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProvider
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _c,
-              builder: (c, w) => CustomPaint(painter: LeafP(progress: _c.value, isDark: d)),
+              builder: (c, w) =>
+                  CustomPaint(painter: LeafP(progress: _c.value, isDark: d)),
             ),
           ),
           Positioned(
@@ -908,45 +1191,4 @@ class LeafP extends CustomPainter {
         ..quadraticBezierTo(7, 7, 0, 0);
 
       canvas.drawPath(pth, p);
-      canvas.restore();
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant LeafP old) => old.progress != progress;
-}
-
-class TreeP extends CustomPainter {
-  final bool isDark;
-
-  TreeP({required this.isDark});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = isDark ? Colors.black.withOpacity(0.85) : const Color(0xFF0F172A).withOpacity(0.6)
-      ..style = PaintingStyle.fill;
-
-    double w = size.width;
-    double h = size.height;
-
-    final pth = Path()
-      ..moveTo(w * 0.35, h)
-      ..cubicTo(w * 0.37, h * 0.8, w * 0.4, h * 0.63, w * 0.25, h * 0.46)
-      ..cubicTo(w * 0.2, h * 0.4, w * 0.1, h * 0.33, w * 0.05, h * 0.26)
-      ..cubicTo(w * 0.15, h * 0.3, w * 0.25, h * 0.36, w * 0.35, h * 0.43)
-      ..cubicTo(w * 0.37, h * 0.33, w * 0.32, h * 0.2, w * 0.4, h * 0.06)
-      ..cubicTo(w * 0.42, h * 0.2, w * 0.45, h * 0.33, w * 0.47, h * 0.46)
-      ..cubicTo(w * 0.57, h * 0.33, w * 0.7, h * 0.23, w * 0.85, h * 0.16)
-      ..cubicTo(w * 0.72, h * 0.26, w * 0.62, h * 0.4, w * 0.57, h * 0.53)
-      ..cubicTo(w * 0.65, h * 0.6, w * 0.75, h * 0.66, w * 0.9, h * 0.73)
-      ..cubicTo(w * 0.7, h * 0.7, w * 0.6, h * 0.63, w * 0.52, h * 0.56)
-      ..cubicTo(w * 0.5, h * 0.66, w * 0.52, h * 0.8, w * 0.55, h)
-      ..close();
-
-    canvas.drawPath(pth, p);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => true;
-}
+      canvas.rest
