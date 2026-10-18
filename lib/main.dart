@@ -404,7 +404,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      final parser = V2rayURL(link: link);
+      // V2Ray URL Parsing (ဒီနေရာမှာ ပြင်ပြီးပါပြီ)
+      final parser = FlutterV2ray.parseFromURL(link);
 
       await v2ray!.startV2Ray(
         remark: "CX VPN",
