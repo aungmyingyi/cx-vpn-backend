@@ -58,7 +58,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   bool isSplash = true;
   bool isLoggedIn = false;
-  int currentPageIndex = 0; // 0: Home, 1: Servers, 2: Settings, 3: Premium
+  int currentPageIndex = 0; 
 
   @override
   void initState() {
@@ -103,10 +103,9 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Sky Background
-          SkyBackground(isDark: isDark),
+          // Background ကို သီးသန့် ခွဲထားတယ် (ဒါမှ စာမျက်နှာ ရွေ့တိုင်း နောက်ခံ ပြန်မဆောက်ရမှာ)
+          RepaintBoundary(child: SkyBackground(isDark: isDark)),
           
-          // Main Content
           SafeArea(
             child: IndexedStack(
               index: currentPageIndex,
@@ -124,18 +123,20 @@ class _MainScreenState extends State<MainScreen> {
             bottom: 20,
             left: 20,
             right: 20,
-            child: GlassContainer(
-              isDark: isDark,
-              borderRadius: 24,
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(0, Icons.home_outlined, "Home", isDark),
-                  _buildNavItem(1, Icons.public, "Servers", isDark),
-                  _buildNavItem(2, Icons.settings, "Settings", isDark),
-                  _buildNavItem(3, Icons.workspace_premium, "Premium", isDark),
-                ],
+            child: RepaintBoundary(
+              child: GlassContainer(
+                isDark: isDark,
+                borderRadius: 24,
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildNavItem(0, Icons.home_outlined, "Home", isDark),
+                    _buildNavItem(1, Icons.public, "Servers", isDark),
+                    _buildNavItem(2, Icons.settings, "Settings", isDark),
+                    _buildNavItem(3, Icons.workspace_premium, "Premium", isDark),
+                  ],
+                ),
               ),
             ),
           ),
@@ -179,19 +180,22 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   bool isConnected = false;
   late AnimationController _spinController;
+  late AnimationController _glitchController;
 
   @override
   void initState() {
     super.initState();
     _spinController = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
+    _glitchController = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _spinController.dispose();
+    _glitchController.dispose();
     super.dispose();
   }
 
@@ -199,8 +203,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     Color textColor = widget.isDark ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
     Color mutedColor = widget.isDark ? const Color(0xFF929DB5) : const Color(0xFF65718A);
+    Color connectedColor = widget.isDark ? const Color(0xFF5DE2A0) : const Color(0xFF16A34A);
 
     return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(), // Smooth Scrolling အတွက်
       padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,7 +254,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   ),
                 ],
               ),
-              // Honeycomb Icon
               Container(
                 width: 58, height: 58,
                 decoration: BoxDecoration(
@@ -270,80 +275,126 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 40),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                GestureDetector(
-                  onTap: () => setState(() => isConnected = !isConnected),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    width: 150, height: 150,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(36), // Squircle
-                      color: isConnected 
-                          ? const Color(0xFF5DE2A0).withOpacity(0.1) 
-                          : (widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6)),
-                      border: Border.all(
-                        color: isConnected 
-                            ? const Color(0xFF5DE2A0) 
-                            : (widget.isDark ? Colors.white.withOpacity(0.3) : Colors.white),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: isConnected 
-                              ? const Color(0xFF5DE2A0).withOpacity(0.4) 
-                              : (widget.isDark ? const Color(0xFFFF8A32).withOpacity(0.13) : Colors.black.withOpacity(0.05)),
-                          blurRadius: 45, spreadRadius: 5,
-                        )
-                      ]
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: 110, height: 110,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(26),
-                          color: isConnected 
-                              ? const Color(0xFF5DE2A0).withOpacity(0.1) 
-                              : (widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.8)),
-                          border: Border.all(
-                            color: isConnected ? const Color(0xFF5DE2A0).withOpacity(0.4) : (widget.isDark ? Colors.white.withOpacity(0.2) : Colors.white)
+                // RepaintBoundary က ခလုတ်ကို သီးသန့်ခွဲထားတယ်
+                RepaintBoundary(
+                  child: GestureDetector(
+                    onTap: () => setState(() => isConnected = !isConnected),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // GLITCH EFFECT LAYERS
+                        if (isConnected) ...[
+                          AnimatedBuilder(
+                            animation: _glitchController,
+                            builder: (context, child) {
+                              return Transform.translate(
+                                offset: Offset(math.sin(_glitchController.value * math.pi * 4) * 6, 0),
+                                child: Container(
+                                  width: 150, height: 150,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(36),
+                                    border: Border.all(color: Colors.cyanAccent.withOpacity(0.8), width: 3),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          AnimatedBuilder(
+                            animation: _glitchController,
+                            builder: (context, child) {
+                              return Transform.translate(
+                                offset: Offset(math.cos(_glitchController.value * math.pi * 4) * -6, 0),
+                                child: Container(
+                                  width: 150, height: 150,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(36),
+                                    border: Border.all(color: Colors.pinkAccent.withOpacity(0.8), width: 3),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                        
+                        // MAIN BUTTON
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: 150, height: 150,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(36),
+                            color: isConnected 
+                                ? connectedColor.withOpacity(0.1) 
+                                : (widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6)),
+                            border: Border.all(
+                              color: isConnected 
+                                  ? connectedColor 
+                                  : (widget.isDark ? Colors.white.withOpacity(0.3) : Colors.white),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isConnected 
+                                    ? connectedColor.withOpacity(0.4) 
+                                    : (widget.isDark ? const Color(0xFFFF8A32).withOpacity(0.13) : Colors.black.withOpacity(0.05)),
+                                blurRadius: 45, spreadRadius: 5,
+                              )
+                            ]
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 110, height: 110,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(26),
+                                color: isConnected 
+                                    ? connectedColor.withOpacity(0.1) 
+                                    : (widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.8)),
+                                border: Border.all(
+                                  color: isConnected ? connectedColor.withOpacity(0.4) : (widget.isDark ? Colors.white.withOpacity(0.2) : Colors.white)
+                                ),
+                              ),
+                              child: Icon(Icons.power_settings_new, size: 42, color: isConnected ? connectedColor : textColor),
+                            ),
                           ),
                         ),
-                        child: Icon(Icons.power_settings_new, size: 42, color: isConnected ? const Color(0xFF5DE2A0) : textColor),
-                      ),
+                      ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 25),
                 Text(
                   isConnected ? "CONNECTED" : "NOT CONNECTED",
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 2, color: isConnected ? const Color(0xFF5DE2A0) : textColor),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 2, color: isConnected ? connectedColor : textColor),
                 ),
                 const SizedBox(height: 7),
                 Text(isConnected ? "Your connection is secured" : "Tap to connect securely", style: TextStyle(fontSize: 12, color: mutedColor)),
                 
                 const SizedBox(height: 15),
                 // Status Pill
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-                  decoration: BoxDecoration(
-                    color: widget.isDark ? Colors.white.withOpacity(0.065) : Colors.white.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(99),
-                    border: Border.all(color: widget.isDark ? Colors.white.withOpacity(0.14) : Colors.black12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7, height: 7,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: isConnected ? const Color(0xFF5DE2A0) : const Color(0xFF9099AC),
-                          boxShadow: isConnected ? [BoxShadow(color: const Color(0xFF5DE2A0).withOpacity(0.8), blurRadius: 12)] : [],
+                RepaintBoundary(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: widget.isDark ? Colors.white.withOpacity(0.065) : Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(99),
+                      border: Border.all(color: widget.isDark ? Colors.white.withOpacity(0.14) : Colors.black12),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 7, height: 7,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isConnected ? connectedColor : const Color(0xFF9099AC),
+                            boxShadow: isConnected ? [BoxShadow(color: connectedColor.withOpacity(0.8), blurRadius: 12)] : [],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(isConnected ? "Protected" : "Ready to connect", style: TextStyle(fontSize: 11, color: mutedColor)),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(isConnected ? "Protected" : "Ready to connect", style: TextStyle(fontSize: 11, color: isConnected ? connectedColor : mutedColor)),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -351,35 +402,37 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ),
 
           // Server Card
-          GlassContainer(
-            isDark: widget.isDark,
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 45, height: 45,
-                  decoration: BoxDecoration(
-                    color: widget.isDark ? Colors.white.withOpacity(0.1) : Colors.white,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: widget.isDark ? Colors.white.withOpacity(0.1) : Colors.black12),
+          RepaintBoundary(
+            child: GlassContainer(
+              isDark: widget.isDark,
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 45, height: 45,
+                    decoration: BoxDecoration(
+                      color: widget.isDark ? Colors.white.withOpacity(0.1) : Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: widget.isDark ? Colors.white.withOpacity(0.1) : Colors.black12),
+                    ),
+                    child: const Icon(Icons.public, color: Color(0xFFFFB66D)),
                   ),
-                  child: const Icon(Icons.public, color: Color(0xFFFFB66D)),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("YOUR LOCATION", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1, color: mutedColor)),
-                      const SizedBox(height: 5),
-                      Text("Auto Location", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
-                      const SizedBox(height: 3),
-                      Text("Select a server location", style: TextStyle(fontSize: 11, color: mutedColor)),
-                    ],
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("YOUR LOCATION", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1, color: mutedColor)),
+                        const SizedBox(height: 5),
+                        Text("Auto Location", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                        const SizedBox(height: 3),
+                        Text("Select a server location", style: TextStyle(fontSize: 11, color: mutedColor)),
+                      ],
+                    ),
                   ),
-                ),
-                Icon(Icons.arrow_forward_ios, size: 16, color: mutedColor),
-              ],
+                  Icon(Icons.arrow_forward_ios, size: 16, color: mutedColor),
+                ],
+              ),
             ),
           ),
 
@@ -399,29 +452,31 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           const SizedBox(height: 15),
 
           // Premium Banner
-          GlassContainer(
-            isDark: widget.isDark,
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 45, height: 45,
-                  decoration: BoxDecoration(color: const Color(0xFFFF8A32).withOpacity(0.13), borderRadius: BorderRadius.circular(15)),
-                  child: const Icon(Icons.workspace_premium, color: Color(0xFFFFB66D)),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("CX Premium", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
-                      const SizedBox(height: 5),
-                      Text("Unlock your full potential", style: TextStyle(fontSize: 11, color: mutedColor)),
-                    ],
+          RepaintBoundary(
+            child: GlassContainer(
+              isDark: widget.isDark,
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 45, height: 45,
+                    decoration: BoxDecoration(color: const Color(0xFFFF8A32).withOpacity(0.13), borderRadius: BorderRadius.circular(15)),
+                    child: const Icon(Icons.workspace_premium, color: Color(0xFFFFB66D)),
                   ),
-                ),
-                Icon(Icons.arrow_forward_ios, size: 16, color: mutedColor),
-              ],
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("CX Premium", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                        const SizedBox(height: 5),
+                        Text("Unlock your full potential", style: TextStyle(fontSize: 11, color: mutedColor)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios, size: 16, color: mutedColor),
+                ],
+              ),
             ),
           ),
 
@@ -460,18 +515,20 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   Widget _buildStatCard(String value, String label, IconData icon, bool isDark, Color text, Color muted) {
     return Expanded(
-      child: GlassContainer(
-        isDark: isDark,
-        padding: const EdgeInsets.all(15),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: const Color(0xFFFFB66D), size: 19),
-            const SizedBox(height: 8),
-            Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: text)),
-            const SizedBox(height: 4),
-            Text(label, style: TextStyle(fontSize: 10, color: muted)),
-          ],
+      child: RepaintBoundary(
+        child: GlassContainer(
+          isDark: isDark,
+          padding: const EdgeInsets.all(15),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: const Color(0xFFFFB66D), size: 19),
+              const SizedBox(height: 8),
+              Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: text)),
+              const SizedBox(height: 4),
+              Text(label, style: TextStyle(fontSize: 10, color: muted)),
+            ],
+          ),
         ),
       ),
     );
@@ -479,26 +536,28 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   Widget _buildFeatureCard(String title, String subtitle, IconData icon, bool isDark, Color text, Color muted) {
     return Expanded(
-      child: GlassContainer(
-        isDark: isDark,
-        padding: const EdgeInsets.all(17),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.07) : Colors.white,
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: isDark ? Colors.white.withOpacity(0.13) : Colors.transparent),
+      child: RepaintBoundary(
+        child: GlassContainer(
+          isDark: isDark,
+          padding: const EdgeInsets.all(17),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withOpacity(0.07) : Colors.white,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: isDark ? Colors.white.withOpacity(0.13) : Colors.transparent),
+                ),
+                child: Icon(icon, color: const Color(0xFFFFB66D), size: 20),
               ),
-              child: Icon(icon, color: const Color(0xFFFFB66D), size: 20),
-            ),
-            const SizedBox(height: 15),
-            Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: text)),
-            const SizedBox(height: 5),
-            Text(subtitle, style: TextStyle(fontSize: 10, color: muted)),
-          ],
+              const SizedBox(height: 15),
+              Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: text)),
+              const SizedBox(height: 5),
+              Text(subtitle, style: TextStyle(fontSize: 10, color: muted)),
+            ],
+          ),
         ),
       ),
     );
@@ -624,7 +683,7 @@ class LoginScreen extends StatelessWidget {
 }
 
 // ==========================================
-// SKY BACKGROUND (Sun, Moon, Tree, Leaves)
+// SKY BACKGROUND WITH CUSTOM PAINT LEAVES (SMOOTH)
 // ==========================================
 class SkyBackground extends StatefulWidget {
   final bool isDark;
@@ -634,14 +693,13 @@ class SkyBackground extends StatefulWidget {
   State<SkyBackground> createState() => _SkyBackgroundState();
 }
 
-class _SkyBackgroundState extends State<SkyBackground> with TickerProviderStateMixin {
+class _SkyBackgroundState extends State<SkyBackground> with SingleTickerProviderStateMixin {
   late AnimationController _leafController;
-  final List<Leaf> leaves = List.generate(15, (index) => Leaf());
 
   @override
   void initState() {
     super.initState();
-    _leafController = AnimationController(vsync: this, duration: const Duration(seconds: 10))..repeat();
+    _leafController = AnimationController(vsync: this, duration: const Duration(seconds: 12))..repeat();
   }
 
   @override
@@ -686,34 +744,17 @@ class _SkyBackgroundState extends State<SkyBackground> with TickerProviderStateM
               ),
             ),
 
-            // Falling Leaves
-            ...leaves.map((leaf) => AnimatedBuilder(
-              animation: _leafController,
-              builder: (context, child) {
-                double progress = (_leafController.value + leaf.delay) % 1.0;
-                double top = MediaQuery.of(context).size.height * progress;
-                double left = (leaf.startX * MediaQuery.of(context).size.width) + (math.sin(progress * math.pi * 4) * 30);
-                
-                return Positioned(
-                  top: top,
-                  left: left,
-                  child: Transform.rotate(
-                    angle: progress * math.pi * 2,
-                    child: Container(
-                      width: 10, height: 10,
-                      decoration: BoxDecoration(
-                        color: widget.isDark ? const Color(0xFFFF8A32) : const Color(0xFF16A34A),
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(10),
-                          bottomRight: Radius.circular(10),
-                        ),
-                        boxShadow: [BoxShadow(color: (widget.isDark ? const Color(0xFFFF8A32) : const Color(0xFF16A34A)).withOpacity(0.4), blurRadius: 4)],
-                      ),
-                    ),
-                  ),
-                );
-              },
-            )),
+            // Falling Leaves via CustomPaint (Smooth Performance)
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _leafController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: LeafPainter(progress: _leafController.value, isDark: widget.isDark),
+                  );
+                },
+              ),
+            ),
 
             // Tree Silhouette
             Positioned(
@@ -730,9 +771,46 @@ class _SkyBackgroundState extends State<SkyBackground> with TickerProviderStateM
   }
 }
 
-class Leaf {
-  final double startX = math.Random().nextDouble();
-  final double delay = math.Random().nextDouble();
+// Custom Painter for Leaves (Runs on GPU = very fast)
+class LeafPainter extends CustomPainter {
+  final double progress;
+  final bool isDark;
+  LeafPainter({required this.progress, required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = isDark ? const Color(0xFFFF8A32) : const Color(0xFF16A34A)
+      ..style = PaintingStyle.fill;
+
+    final random = math.Random(123); // Fixed seed for consistent leaves
+
+    for (int i = 0; i < 15; i++) {
+      double startX = random.nextDouble() * size.width;
+      double delay = random.nextDouble();
+      double speed = 0.5 + random.nextDouble();
+      
+      double currentProgress = (progress * speed + delay) % 1.0;
+      double y = size.height * currentProgress;
+      double x = startX + (math.sin(currentProgress * math.pi * 4) * 30);
+      
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(currentProgress * math.pi * 2);
+      
+      // Draw leaf shape
+      Path path = Path();
+      path.moveTo(0, 0);
+      path.quadraticBezierTo(5, -5, 10, 0);
+      path.quadraticBezierTo(5, 5, 0, 0);
+      canvas.drawPath(path, paint);
+      
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant LeafPainter oldDelegate) => oldDelegate.progress != progress;
 }
 
 class TreePainter extends CustomPainter {
@@ -748,7 +826,6 @@ class TreePainter extends CustomPainter {
     double w = size.width;
     double h = size.height;
 
-    // Translating the SVG Path to Flutter Path
     final path = Path();
     path.moveTo(w * 0.35, h);
     path.cubicTo(w * 0.37, h * 0.8, w * 0.4, h * 0.63, w * 0.25, h * 0.46);
@@ -771,7 +848,7 @@ class TreePainter extends CustomPainter {
 }
 
 // ==========================================
-// REUSABLE GLASS COMPONENTS
+// REUSABLE GLASS COMPONENTS (Optimized Blur)
 // ==========================================
 class GlassContainer extends StatelessWidget {
   final Widget child;
@@ -792,7 +869,8 @@ class GlassContainer extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        // Blur ကို ၂၄ ကနေ ၁၂ ကို လျှော့ချလိုက်တယ် (Performance အတွက်)
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12), 
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
