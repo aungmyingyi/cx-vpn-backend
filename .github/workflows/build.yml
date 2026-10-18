@@ -26,23 +26,24 @@ jobs:
         version: 'latest'
         cache: true
 
-    - name: Create missing platform folders (safe)
+    # Android Folder မရှိရင် အလိုအလျောက် ဖန်တီးမယ်
+    - name: Create Android folder if missing
       run: |
         if [ ! -d "android" ]; then
-          echo "android/ not found — running flutter create"
           flutter create --project-name cx_vpn --platforms=android .
-        else
-          echo "android/ exists — skipping flutter create"
         fi
+
+    # Permission တွေကို AndroidManifest.xml ထဲကို အလိုအလျောက် ထည့်ပေးမယ်
+    - name: Add Permissions to AndroidManifest
+      run: |
+        sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n\n    <application/' android/app/src/main/AndroidManifest.xml
 
     - name: Install dependencies
       run: flutter pub get
 
+    # APK ၃ ခု ထုတ်မယ်
     - name: Build APKs (split per ABI)
       run: flutter build apk --release --split-per-abi
-
-    - name: List generated APKs
-      run: ls -lh build/app/outputs/flutter-apk/
 
     - name: Upload APK (arm64-v8a)
       uses: actions/upload-artifact@v4
