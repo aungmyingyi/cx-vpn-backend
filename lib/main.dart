@@ -404,7 +404,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
 
-      // ဒီနေရာမှာ V2rayURL အစား အောက်ပါအတိုင်း ပြောင်းထားပါတယ်
       final parser = FlutterV2ray.parseFromURL(link);
 
       await v2ray!.startV2Ray(
