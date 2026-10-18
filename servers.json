@@ -1,0 +1,16 @@
+[
+  {
+    "id": "1",
+    "name": "Japan 1",
+    "country": "Asia Pacific",
+    "flag": "🇯🇵",
+    "vlessLink": "vless://e13cf851-b4fd-413b-8d49-146e6eb8e5d4@platform115.golnamakcert.top:80?path=%2Fplatform115&security=&encryption=none&host=platform115.halalkhor.info&type=ws&sni=platform115.halalkhor.info#%F0%9F%8F%B3%5Bwww.v2nodes.com%5D%20vless-"
+  },
+  {
+    "id": "2",
+    "name": "Singapore 1",
+    "country": "Asia Pacific",
+    "flag": "🇸🇬",
+    "vlessLink": "vless://082f5694-9019-4110-b67b-8125dbb9bab8@104.19.214.15:2087?type=ws&security=tls&path=%2F#CX_VPN_Server1"
+  }
+]
