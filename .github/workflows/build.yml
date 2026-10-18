@@ -34,29 +34,27 @@ jobs:
       run: |
         MANIFEST="android/app/src/main/AndroidManifest.xml"
         
-        # 1. Permissions တွေ ထည့်မယ် (Internet နဲ့ Cleartext Traffic ပါ ထည့်ထားတယ်)
+        # Permissions ထည့်ခြင်း
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" \/>\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" \/>\n\n    <application android:usesCleartextTraffic="true"/' $MANIFEST
 
-        # 2. VPN Service နဲ့ Start.io App ID ကို ထည့်မယ်
-        sed -i 's|</application>|    <service android:name="com.flutter_v2ray_client.V2RayVpnService" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="false" android:foregroundServiceType="specialUse">\n            <intent-filter>\n                <action android:name="android.net.VpnService"/>\n            </intent-filter>\n        </service>\n        <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="209308326" \/>\n        <meta-data android:name="com.startapp.sdk.RETURN_ADS_ENABLED" android:value="false" \/>\n    <\/application>|' $MANIFEST
+        # VPN Service နှင့် Start.io App ID ထည့်ခြင်း
+        sed -i 's|</application>|    <service android:name="com.flutter_v2ray_client.V2RayVpnService" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="false" android:foregroundServiceType="specialUse">\n            <intent-filter>\n                <action android:name="android.net.VpnService"/>\n            </intent-filter>\n            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="VPN connection"/>\n        </service>\n        <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="209308326" \/>\n        <meta-data android:name="com.startapp.sdk.RETURN_ADS_ENABLED" android:value="false" \/>\n    <\/application>|' $MANIFEST
 
     - name: Fix Android SDK, NDK & AGP Versions (.kts files)
       run: |
-        # 1. app/build.gradle.kts ထဲက SDK နဲ့ NDK Version တွေကို ပြောင်းမယ်
+        # SDK နှင့် NDK Version ပြင်ဆင်ခြင်း
         sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/' android/app/build.gradle.kts
         sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
         sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' android/app/build.gradle.kts
         sed -i 's/ndkVersion = flutter.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
 
-        # 2. settings.gradle.kts ထဲက AGP Version ကို ပိုမိုတိကျစွာ ရှာပြီး 8.11.1 သို့ ပြောင်းမယ်
+        # AGP Version ပြင်ဆင်ခြင်း
         sed -i 's/id("com.android.application") version "[^"]*" apply false/id("com.android.application") version "8.11.1" apply false/' android/settings.gradle.kts
         sed -i 's/id("com.android.library") version "[^"]*" apply false/id("com.android.library") version "8.11.1" apply false/' android/settings.gradle.kts
 
     - name: Fix AAPT2 Version and Add Gradle Properties
       run: |
-        # AAPT2 Version သတ်မှတ်ခြင်း
         echo "android.aapt2Version=8.6.1-11315950" >> android/gradle.properties
-        # Flutter နှင့် AGP 9 ၏ New DSL မကိုက်ညီမှုကို ဖြေရှင်းရန် ပိတ်ထားခြင်း
         echo "android.newDsl=false" >> android/gradle.properties
 
     - name: Clean and Install dependencies
