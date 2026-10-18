@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'dart:math' as math;
 
 void main() {
   runApp(const CXVpnApp());
@@ -70,7 +71,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     bool isDark = widget.isDarkMode;
-    Color bgColor = isDark ? const Color(0xFF070B16) : const Color(0xFFE8EDF7);
+    Color bgColor = isDark ? const Color(0xFF050810) : const Color(0xFFE8EDF7);
     
     if (isSplash) {
       return Scaffold(
@@ -102,16 +103,18 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          _buildAmbientBackground(isDark),
+          // Sky Background
+          SkyBackground(isDark: isDark),
           
+          // Main Content
           SafeArea(
             child: IndexedStack(
               index: currentPageIndex,
               children: [
                 HomePage(isDark: isDark, toggleTheme: widget.toggleTheme),
-                Center(child: Text("Servers Page", style: TextStyle(color: isDark ? Colors.white : Colors.black))),
-                Center(child: Text("Settings Page", style: TextStyle(color: isDark ? Colors.white : Colors.black))),
-                Center(child: Text("Premium Page", style: TextStyle(color: isDark ? Colors.white : Colors.black))),
+                const Center(child: Text("Servers Page (Coming Soon)")),
+                const Center(child: Text("Settings Page (Coming Soon)")),
+                const Center(child: Text("Premium Page (Coming Soon)")),
               ],
             ),
           ),
@@ -129,9 +132,9 @@ class _MainScreenState extends State<MainScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildNavItem(0, Icons.home_outlined, "Home", isDark),
-                  _buildNavItem(1, Icons.language, "Servers", isDark),
-                  _buildNavItem(2, Icons.settings_outlined, "Settings", isDark),
-                  _buildNavItem(3, Icons.workspace_premium_outlined, "Premium", isDark),
+                  _buildNavItem(1, Icons.public, "Servers", isDark),
+                  _buildNavItem(2, Icons.settings, "Settings", isDark),
+                  _buildNavItem(3, Icons.workspace_premium, "Premium", isDark),
                 ],
               ),
             ),
@@ -154,53 +157,9 @@ class _MainScreenState extends State<MainScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: isActive ? const Color(0xFFFFB66D) : (isDark ? const Color(0xFF929DB5) : const Color(0xFF65718A))),
+            Icon(icon, size: 22, color: isActive ? const Color(0xFFFFB66D) : (isDark ? const Color(0xFF929DB5) : const Color(0xFF65718A))),
             const SizedBox(height: 4),
             Text(label, style: TextStyle(fontSize: 10, color: isActive ? const Color(0xFFFFB66D) : (isDark ? const Color(0xFF929DB5) : const Color(0xFF65718A)))),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAmbientBackground(bool isDark) {
-    return Positioned.fill(
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark 
-              ? [const Color(0xFF080D1B), const Color(0xFF060914)]
-              : [const Color(0xFFEDF2FF), const Color(0xFFDCE5F5)],
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: MediaQuery.of(context).size.height * 0.16,
-              left: -100,
-              child: Container(
-                width: 260, height: 260,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF377BFF).withOpacity(0.18),
-                  boxShadow: [BoxShadow(color: const Color(0xFF377BFF).withOpacity(0.18), blurRadius: 85)],
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: MediaQuery.of(context).size.height * 0.12,
-              right: -100,
-              child: Container(
-                width: 260, height: 260,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFFF812D).withOpacity(0.18),
-                  boxShadow: [BoxShadow(color: const Color(0xFFFF812D).withOpacity(0.18), blurRadius: 85)],
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -220,8 +179,21 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   bool isConnected = false;
+  late AnimationController _spinController;
+
+  @override
+  void initState() {
+    super.initState();
+    _spinController = AnimationController(vsync: this, duration: const Duration(seconds: 6))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _spinController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -229,7 +201,7 @@ class _HomePageState extends State<HomePage> {
     Color mutedColor = widget.isDark ? const Color(0xFF929DB5) : const Color(0xFF65718A);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 100),
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -258,15 +230,40 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 34),
 
-          // Welcome Text
-          Text("WELCOME BACK", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: mutedColor)),
-          const SizedBox(height: 9),
-          RichText(
-            text: TextSpan(
-              text: 'Your digital\nworld, ',
-              style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, height: 1.2, color: textColor),
-              children: const [TextSpan(text: 'protected.', style: TextStyle(color: Color(0xFFFFB66D)))],
-            ),
+          // Welcome Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("WELCOME BACK", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, color: mutedColor)),
+                  const SizedBox(height: 9),
+                  RichText(
+                    text: TextSpan(
+                      text: 'Your digital\nworld, ',
+                      style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, height: 1.2, color: textColor),
+                      children: const [TextSpan(text: 'protected.', style: TextStyle(color: Color(0xFFFFB66D)))],
+                    ),
+                  ),
+                ],
+              ),
+              // Honeycomb Icon
+              Container(
+                width: 58, height: 58,
+                decoration: BoxDecoration(
+                  color: widget.isDark ? const Color(0xFFFF8A32).withOpacity(0.09) : Colors.white.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFFF8A32).withOpacity(0.25)),
+                ),
+                child: Center(
+                  child: RotationTransition(
+                    turns: _spinController,
+                    child: const Icon(Icons.settings_input_component, color: Color(0xFFFFB66D), size: 30),
+                  ),
+                ),
+              )
+            ],
           ),
           
           // Connection Area
@@ -278,30 +275,40 @@ class _HomePageState extends State<HomePage> {
                   onTap: () => setState(() => isConnected = !isConnected),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
-                    width: 166, height: 166,
+                    width: 150, height: 150,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isConnected ? const Color(0xFF5DE2A0).withOpacity(0.1) : (widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6)),
+                      borderRadius: BorderRadius.circular(36), // Squircle
+                      color: isConnected 
+                          ? const Color(0xFF5DE2A0).withOpacity(0.1) 
+                          : (widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6)),
                       border: Border.all(
-                        color: isConnected ? const Color(0xFF5DE2A0) : (widget.isDark ? Colors.white.withOpacity(0.3) : Colors.white),
+                        color: isConnected 
+                            ? const Color(0xFF5DE2A0) 
+                            : (widget.isDark ? Colors.white.withOpacity(0.3) : Colors.white),
                         width: 1.5,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: isConnected ? const Color(0xFF5DE2A0).withOpacity(0.4) : (widget.isDark ? const Color(0xFFFF8A32).withOpacity(0.13) : Colors.black.withOpacity(0.05)),
+                          color: isConnected 
+                              ? const Color(0xFF5DE2A0).withOpacity(0.4) 
+                              : (widget.isDark ? const Color(0xFFFF8A32).withOpacity(0.13) : Colors.black.withOpacity(0.05)),
                           blurRadius: 45, spreadRadius: 5,
                         )
                       ]
                     ),
                     child: Center(
                       child: Container(
-                        width: 124, height: 124,
+                        width: 110, height: 110,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.8),
-                          border: Border.all(color: widget.isDark ? Colors.white.withOpacity(0.2) : Colors.white),
+                          borderRadius: BorderRadius.circular(26),
+                          color: isConnected 
+                              ? const Color(0xFF5DE2A0).withOpacity(0.1) 
+                              : (widget.isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.8)),
+                          border: Border.all(
+                            color: isConnected ? const Color(0xFF5DE2A0).withOpacity(0.4) : (widget.isDark ? Colors.white.withOpacity(0.2) : Colors.white)
+                          ),
                         ),
-                        child: Icon(Icons.power_settings_new, size: 48, color: isConnected ? const Color(0xFF5DE2A0) : textColor),
+                        child: Icon(Icons.power_settings_new, size: 42, color: isConnected ? const Color(0xFF5DE2A0) : textColor),
                       ),
                     ),
                   ),
@@ -313,6 +320,32 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 7),
                 Text(isConnected ? "Your connection is secured" : "Tap to connect securely", style: TextStyle(fontSize: 12, color: mutedColor)),
+                
+                const SizedBox(height: 15),
+                // Status Pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: widget.isDark ? Colors.white.withOpacity(0.065) : Colors.white.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: widget.isDark ? Colors.white.withOpacity(0.14) : Colors.black12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7, height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isConnected ? const Color(0xFF5DE2A0) : const Color(0xFF9099AC),
+                          boxShadow: isConnected ? [BoxShadow(color: const Color(0xFF5DE2A0).withOpacity(0.8), blurRadius: 12)] : [],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(isConnected ? "Protected" : "Ready to connect", style: TextStyle(fontSize: 11, color: mutedColor)),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -350,7 +383,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          const SizedBox(height: 15),
+          const SizedBox(height: 13),
 
           // Stats Grid
           Row(
@@ -488,16 +521,7 @@ class LoginScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: isDark ? [const Color(0xFF080D1B), const Color(0xFF060914)] : [const Color(0xFFEDF2FF), const Color(0xFFDCE5F5)],
-                ),
-              ),
-            ),
-          ),
+          SkyBackground(isDark: isDark),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -556,7 +580,7 @@ class LoginScreen extends StatelessWidget {
                         const SizedBox(height: 12),
                         _buildLoginBtn("Continue with Google", Icons.g_mobiledata, isDark, textColor, () {}),
                         const SizedBox(height: 12),
-                        _buildLoginBtn("Continue with Reddit", Icons.forum, isDark, textColor, () {}), // Changed icon to forum to avoid errors
+                        _buildLoginBtn("Continue with Reddit", Icons.forum, isDark, textColor, () {}),
                       ],
                     ),
                   ),
@@ -600,6 +624,153 @@ class LoginScreen extends StatelessWidget {
 }
 
 // ==========================================
+// SKY BACKGROUND (Sun, Moon, Tree, Leaves)
+// ==========================================
+class SkyBackground extends StatefulWidget {
+  final bool isDark;
+  const SkyBackground({super.key, required this.isDark});
+
+  @override
+  State<SkyBackground> createState() => _SkyBackgroundState();
+}
+
+class _SkyBackgroundState extends State<SkyBackground> with TickerProviderStateMixin {
+  late AnimationController _leafController;
+  final List<Leaf> leaves = List.generate(15, (index) => Leaf());
+
+  @override
+  void initState() {
+    super.initState();
+    _leafController = AnimationController(vsync: this, duration: const Duration(seconds: 10))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _leafController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 800),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: widget.isDark 
+              ? [const Color(0xFF020513), const Color(0xFF0A1128), const Color(0xFF192542)]
+              : [const Color(0xFF4FACFE), const Color(0xFF00F2FE), const Color(0xFFE0F6FF)],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Sun & Moon
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.08,
+              right: MediaQuery.of(context).size.width * 0.12,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 800),
+                width: 80, height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.isDark ? Colors.white : const Color(0xFFFFDB58),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.isDark ? Colors.white.withOpacity(0.3) : const Color(0xFFFFDB58).withOpacity(0.6),
+                      blurRadius: 40, spreadRadius: 10,
+                    )
+                  ],
+                ),
+              ),
+            ),
+
+            // Falling Leaves
+            ...leaves.map((leaf) => AnimatedBuilder(
+              animation: _leafController,
+              builder: (context, child) {
+                double progress = (_leafController.value + leaf.delay) % 1.0;
+                double top = MediaQuery.of(context).size.height * progress;
+                double left = (leaf.startX * MediaQuery.of(context).size.width) + (math.sin(progress * math.pi * 4) * 30);
+                
+                return Positioned(
+                  top: top,
+                  left: left,
+                  child: Transform.rotate(
+                    angle: progress * math.pi * 2,
+                    child: Container(
+                      width: 10, height: 10,
+                      decoration: BoxDecoration(
+                        color: widget.isDark ? const Color(0xFFFF8A32) : const Color(0xFF16A34A),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(10),
+                          bottomRight: Radius.circular(10),
+                        ),
+                        boxShadow: [BoxShadow(color: (widget.isDark ? const Color(0xFFFF8A32) : const Color(0xFF16A34A)).withOpacity(0.4), blurRadius: 4)],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            )),
+
+            // Tree Silhouette
+            Positioned(
+              bottom: -10, left: 0, right: 0,
+              child: CustomPaint(
+                size: Size(MediaQuery.of(context).size.width, 300),
+                painter: TreePainter(isDark: widget.isDark),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class Leaf {
+  final double startX = math.Random().nextDouble();
+  final double delay = math.Random().nextDouble();
+}
+
+class TreePainter extends CustomPainter {
+  final bool isDark;
+  TreePainter({required this.isDark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = isDark ? Colors.black.withOpacity(0.85) : const Color(0xFF0F172A).withOpacity(0.6)
+      ..style = PaintingStyle.fill;
+
+    double w = size.width;
+    double h = size.height;
+
+    // Translating the SVG Path to Flutter Path
+    final path = Path();
+    path.moveTo(w * 0.35, h);
+    path.cubicTo(w * 0.37, h * 0.8, w * 0.4, h * 0.63, w * 0.25, h * 0.46);
+    path.cubicTo(w * 0.2, h * 0.4, w * 0.1, h * 0.33, w * 0.05, h * 0.26);
+    path.cubicTo(w * 0.15, h * 0.3, w * 0.25, h * 0.36, w * 0.35, h * 0.43);
+    path.cubicTo(w * 0.37, h * 0.33, w * 0.32, h * 0.2, w * 0.4, h * 0.06);
+    path.cubicTo(w * 0.42, h * 0.2, w * 0.45, h * 0.33, w * 0.47, h * 0.46);
+    path.cubicTo(w * 0.57, h * 0.33, w * 0.7, h * 0.23, w * 0.85, h * 0.16);
+    path.cubicTo(w * 0.72, h * 0.26, w * 0.62, h * 0.4, w * 0.57, h * 0.53);
+    path.cubicTo(w * 0.65, h * 0.6, w * 0.75, h * 0.66, w * 0.9, h * 0.73);
+    path.cubicTo(w * 0.7, h * 0.7, w * 0.6, h * 0.63, w * 0.52, h * 0.56);
+    path.cubicTo(w * 0.5, h * 0.66, w * 0.52, h * 0.8, w * 0.55, h);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// ==========================================
 // REUSABLE GLASS COMPONENTS
 // ==========================================
 class GlassContainer extends StatelessWidget {
@@ -630,7 +801,6 @@ class GlassContainer extends StatelessWidget {
               color: isDark ? Colors.white.withOpacity(0.14) : const Color(0xFF2B3954).withOpacity(0.13),
               width: 1,
             ),
-            // ERROR FIX: Removed 'color' here because we use 'gradient'
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
