@@ -34,8 +34,8 @@ jobs:
       run: |
         MANIFEST="android/app/src/main/AndroidManifest.xml"
         
-        # 1. Permissions တွေ ထည့်မယ်
-        sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" \/>\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" \/>\n\n    <application/' $MANIFEST
+        # 1. Permissions တွေ ထည့်မယ် (Internet နဲ့ Cleartext Traffic ပါ ထည့်ထားတယ်)
+        sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" \/>\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" \/>\n\n    <application android:usesCleartextTraffic="true"/' $MANIFEST
 
         # 2. VPN Service နဲ့ Start.io App ID ကို ထည့်မယ်
         sed -i 's|</application>|    <service android:name="com.flutter_v2ray_client.V2RayVpnService" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="false" android:foregroundServiceType="specialUse">\n            <intent-filter>\n                <action android:name="android.net.VpnService"/>\n            </intent-filter>\n        </service>\n        <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="209308326" \/>\n        <meta-data android:name="com.startapp.sdk.RETURN_ADS_ENABLED" android:value="false" \/>\n    <\/application>|' $MANIFEST
