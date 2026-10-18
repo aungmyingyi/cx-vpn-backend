@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter_v2ray/flutter_v2ray.dart';
 
 void main() {
@@ -23,6 +25,16 @@ class ServerModel {
     required this.flag,
     required this.vlessLink,
   });
+
+  factory ServerModel.fromJson(Map<String, dynamic> json) {
+    return ServerModel(
+      id: json['id'] ?? '',
+      name: json['name'] ?? 'Unknown',
+      country: json['country'] ?? '',
+      flag: json['flag'] ?? '🌐',
+      vlessLink: json['vlessLink'] ?? '',
+    );
+  }
 }
 
 // ==========================================
@@ -85,37 +97,37 @@ class _MainScreenState extends State<MainScreen> {
   bool isLoggedIn = false;
   int currentPageIndex = 0; 
 
-  // ဒီနေရာမှာ မင်း ပေးလိုက်တဲ့ Japan Link ကို ထည့်ပေးထားပါတယ်
-  final List<ServerModel> servers = [
-    ServerModel(
-      id: '1',
-      name: 'Singapore 1',
-      country: 'Asia Pacific',
-      flag: '🇸🇬',
-      vlessLink: "vless://082f5694-9019-4110-b67b-8125dbb9bab8@104.19.214.15:2087?type=ws&security=tls&path=%2F#CX_VPN_Server1",
-    ),
-    ServerModel(
-      id: '2',
-      name: 'Japan 1',
-      country: 'Asia Pacific',
-      flag: '🇯🇵',
-      vlessLink: "vless://e13cf851-b4fd-413b-8d49-146e6eb8e5d4@platform115.golnamakcert.top:80?path=%2Fplatform115&security=&encryption=none&host=platform115.halalkhor.info&type=ws&sni=platform115.halalkhor.info#%F0%9F%8F%B3%5Bwww.v2nodes.com%5D%20vless-",
-    ),
-    ServerModel(
-      id: '3',
-      name: 'United States 1',
-      country: 'North America',
-      flag: '🇺🇸',
-      vlessLink: "vless://e4b3c2a1-1234-5678-9abc-def012345678@104.19.214.15:2087?type=ws&security=tls&path=%2F#CX_VPN_Server3",
-    ),
-  ];
+  List<ServerModel> servers = [];
+  ServerModel? selectedServer;
+  bool isLoadingServers = true;
 
-  late ServerModel selectedServer;
+  // ⚠️ မင်း ရဲ့ Live Update Link ကို ဒီမှာ ထည့်ထားပါတယ် ⚠️
+  final String serverListUrl = "https://raw.githubusercontent.com/aungmyingyi/cx-vpn-backend/refs/heads/main/servers.json";
 
   @override
   void initState() {
     super.initState();
-    selectedServer = servers[0];
+    fetchServers();
+  }
+
+  Future<void> fetchServers() async {
+    try {
+      final response = await http.get(Uri.parse(serverListUrl));
+      if (response.statusCode == 200) {
+        List<dynamic> data = json.decode(response.body);
+        setState(() {
+          servers = data.map((json) => ServerModel.fromJson(json)).toList();
+          if (servers.isNotEmpty) selectedServer = servers[0];
+          isLoadingServers = false;
+        });
+      }
+    } catch (e) {
+      // အင်တာနက် မရရင် ဒါမှမဟုတ် Error တက်ရင် ဒီအဆင့်ကို ရောက်ပါမယ်
+      setState(() {
+        isLoadingServers = false;
+      });
+      debugPrint("Error fetching servers: $e");
+    }
 
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) setState(() => isSplash = false);
@@ -133,7 +145,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     bool isDark = widget.isDarkMode;
     
-    if (isSplash) {
+    if (isSplash || isLoadingServers) {
       return Scaffold(
         backgroundColor: isDark ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
         body: Center(
@@ -144,9 +156,18 @@ class _MainScreenState extends State<MainScreen> {
               const SizedBox(height: 20),
               const CircularProgressIndicator(color: Color(0xFFFF8A32)),
               const SizedBox(height: 20),
-              Text('POWERED BY CEREBRA X', style: TextStyle(fontSize: 10, letterSpacing: 2, color: isDark ? Colors.grey : Colors.black54)),
+              Text(isLoadingServers ? 'Syncing Servers...' : 'POWERED BY CEREBRA X', style: TextStyle(fontSize: 10, letterSpacing: 2, color: isDark ? Colors.grey : Colors.black54)),
             ],
           ),
+        ),
+      );
+    }
+
+    if (selectedServer == null) {
+      return Scaffold(
+        backgroundColor: isDark ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
+        body: Center(
+          child: Text("No servers available.\nPlease check your internet connection.", textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
         ),
       );
     }
@@ -171,13 +192,13 @@ class _MainScreenState extends State<MainScreen> {
                 HomePage(
                   isDark: isDark, 
                   toggleTheme: widget.toggleTheme,
-                  selectedServer: selectedServer,
+                  selectedServer: selectedServer!,
                   onNavigateToServers: () => setState(() => currentPageIndex = 1),
                 ),
                 ServersPage(
                   isDark: isDark,
                   servers: servers,
-                  selectedServer: selectedServer,
+                  selectedServer: selectedServer!,
                   onSelectServer: selectServer,
                 ),
                 const Center(child: Text("Settings Page (Coming Soon)")),
@@ -309,7 +330,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       await v2ray.initializeV2Ray();
       
-      // ဒီနေရာမှာ ရွေးချယ်ထားတဲ့ ဆာဗာရဲ့ Link ကို သုံးထားပါတယ်
       V2RayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
       await v2ray.startV2Ray(
         remark: "CX VPN",
@@ -398,7 +418,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ],
           ),
           
-          // Connection Area
+          // Connection Area (Centered)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 40),
             child: Center(
@@ -411,6 +431,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
+                          // Glitch Effects (Only visible when connected)
                           if (isConnected) ...[
                             AnimatedBuilder(
                               animation: _glitchController,
@@ -444,6 +465,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                             ),
                           ],
                           
+                          // Main Squircle Button
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 300),
                             width: 150, height: 150,
@@ -718,7 +740,7 @@ class ServersPage extends StatelessWidget {
 }
 
 // ==========================================
-// LOGIN SCREEN (Unchanged)
+// LOGIN SCREEN
 // ==========================================
 class LoginScreen extends StatelessWidget {
   final bool isDark;
