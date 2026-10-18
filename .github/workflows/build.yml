@@ -26,8 +26,7 @@ jobs:
         flutter-version: '3.19.6' 
         cache: true
 
-    # Android Folder အဟောင်းတွေ ရှိနေရင် ဖျက်ပြီး အသစ် (v2) ပြန်ဖန်တီးခိုင်းခြင်း
-    - name: Create Android folder if missing or old
+    - name: Create Android folder (v2)
       run: |
         rm -rf android
         flutter create --project-name cx_vpn --platforms=android .
@@ -35,6 +34,10 @@ jobs:
     - name: Add Permissions to AndroidManifest
       run: |
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n\n    <application/' android/app/src/main/AndroidManifest.xml
+
+    - name: Set MinSdkVersion to 24
+      run: |
+        sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' android/app/build.gradle
 
     - name: Install dependencies
       run: flutter pub get
