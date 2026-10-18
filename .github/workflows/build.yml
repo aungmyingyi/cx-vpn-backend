@@ -26,6 +26,12 @@ jobs:
     - name: Create missing platform folders
       run: flutter create --project-name cx_vpn .
 
+    - name: Setup Android NDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install NDK
+      run: echo "y" | sdkmanager "ndk;25.1.8937393"
+
     - name: Inject VPN Service into AndroidManifest
       run: |
         python3 - <<'EOF'
@@ -53,33 +59,22 @@ jobs:
 
     - name: Configure Android Gradle for VPN
       run: |
-        python3 - <<'EOF'
-        import os
-        import re
+        # Android Setting တွေကို အတင်းပြင်မယ်
+        sed -i 's/compileSdk .*/compileSdk = 34/g' android/app/build.gradle.kts || true
+        sed -i 's/compileSdkVersion .*/compileSdkVersion = 34/g' android/app/build.gradle || true
+        
+        sed -i 's/minSdk .*/minSdk = 24/g' android/app/build.gradle.kts || true
+        sed -i 's/minSdkVersion .*/minSdkVersion = 24/g' android/app/build.gradle || true
 
-        paths = ['android/app/build.gradle', 'android/app/build.gradle.kts']
-        file_path = next((p for p in paths if os.path.exists(p)), None)
-
-        if file_path:
-            with open(file_path, 'r') as f:
-                content = f.read()
-
-            content = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk = 34', content)
-            content = re.sub(r'compileSdkVersion\s*=?\s*\d+', 'compileSdkVersion = 34', content)
-            content = re.sub(r'minSdk\s*=?\s*flutter\.minSdkVersion', 'minSdk = 21', content)
-            content = re.sub(r'minSdkVersion\s*=?\s*flutter\.minSdkVersion', 'minSdkVersion = 21', content)
-            content = re.sub(r'minSdk\s*=?\s*\d+', 'minSdk = 21', content)
-            content = re.sub(r'minSdkVersion\s*=?\s*\d+', 'minSdkVersion = 21', content)
-
-            with open(file_path, 'w') as f:
-                f.write(content)
-        EOF
+        # NDK Version ကို သတ်မှတ်မယ်
+        echo "ndkVersion = \"25.1.8937393\"" >> android/app/build.gradle.kts || true
+        echo "ndkVersion \"25.1.8937393\"" >> android/app/build.gradle || true
       
     - name: Install dependencies
       run: flutter pub get
       
     - name: Build APK
-      run: flutter build apk --release
+      run: flutter build apk --release --no-shrink
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
