@@ -9,6 +9,7 @@ import 'package:startapp_sdk/startapp.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // StartApp SDK ကို စောစောကို Initialize လုပ်ထားမယ် (Crash မဖြစ်စေရန်)
   try {
     final startAppSdk = StartAppSdk();
     if (kDebugMode) {
@@ -112,11 +113,13 @@ class _CXVpnAppState extends State<CXVpnApp> {
         brightness: Brightness.light,
         scaffoldBackgroundColor: const Color(0xFFE8EDF7),
         primaryColor: const Color(0xFFFF8A32),
+        canvasColor: const Color(0xFFE8EDF7),
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF070B16),
         primaryColor: const Color(0xFFFF8A32),
+        canvasColor: const Color(0xFF070B16),
       ),
       home: MainScreen(
         isDark: isDark,
@@ -171,110 +174,121 @@ class _MainScreenState extends State<MainScreen> {
       });
     }
 
-    List<String> allLinks = [];
+    try {
+      List<String> allLinks = [];
 
-    for (String url in subUrls) {
-      try {
-        final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
-        if (res.statusCode == 200) {
-          List<String> links = res.body
-              .split('\n')
-              .map((e) => e.trim())
-              .where((e) =>
-                  e.startsWith('vless://') ||
-                  e.startsWith('vmess://') ||
-                  e.startsWith('trojan://'))
-              .toList();
-          allLinks.addAll(links);
+      for (String url in subUrls) {
+        try {
+          final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
+          if (res.statusCode == 200) {
+            List<String> links = res.body
+                .split('\n')
+                .map((e) => e.trim())
+                .where((e) =>
+                    e.startsWith('vless://') ||
+                    e.startsWith('vmess://') ||
+                    e.startsWith('trojan://'))
+                .toList();
+            allLinks.addAll(links);
+          }
+        } catch (e) {
+          debugPrint("Fetch error $url: $e");
         }
-      } catch (e) {
-        debugPrint("Fetch error $url: $e");
       }
-    }
 
-    if (allLinks.isEmpty) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          errorMsg = "No valid links found. Check your internet.";
-        });
-      }
-      return;
-    }
-
-    allLinks.shuffle();
-    List<String> linksToTest = allLinks.take(3).toList();
-
-    final mgr = V2rayManager();
-    mgr.initialize(onStatusChanged: (_) {});
-    final ready = await mgr.ensureInitialized();
-    if (!ready) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          errorMsg = "VPN engine failed to initialize.";
-        });
-      }
-      return;
-    }
-
-    List<ServerModel> testedServers = [];
-
-    for (int i = 0; i < linksToTest.length; i++) {
-      try {
-        final parser = V2ray.parseFromURL(linksToTest[i]);
-        final delay = await mgr.v2ray
-            .getServerDelay(config: parser.getFullConfiguration())
-            .timeout(const Duration(seconds: 2));
-
-        final remark = parser.remark.isNotEmpty ? parser.remark : "Unknown";
-        testedServers.add(ServerModel(
-          id: i.toString(),
-          name: FlagHelper.cleanName(remark),
-          country: remark,
-          flag: FlagHelper.extractFlag(remark),
-          vlessLink: linksToTest[i],
-          ping: delay,
-        ));
-      } catch (e) {
-        debugPrint("Ping fail: $e");
-      }
-    }
-
-    if (testedServers.isNotEmpty) {
-      testedServers.sort((a, b) => a.ping.compareTo(b.ping));
-      if (mounted) {
-        setState(() {
-          servers = testedServers;
-          selectedServer = testedServers.first;
-          isLoading = false;
-        });
-      }
-    } else {
-      try {
-        final parser = V2ray.parseFromURL(linksToTest[0]);
-        final remark = parser.remark.isNotEmpty ? parser.remark : "Default Server";
-        if (mounted) {
-          setState(() {
-            servers = [ServerModel(
-              id: "0",
-              name: FlagHelper.cleanName(remark),
-              country: remark,
-              flag: FlagHelper.extractFlag(remark),
-              vlessLink: linksToTest[0],
-              ping: 999,
-            )];
-            selectedServer = servers.first;
-            isLoading = false;
-          });
-        }
-      } catch (e) {
+      if (allLinks.isEmpty) {
         if (mounted) {
           setState(() {
             isLoading = false;
-            errorMsg = "Failed to load servers.";
+            errorMsg = "No valid links found. Check your internet.";
           });
         }
+        return;
+      }
+
+      allLinks.shuffle();
+      List<String> linksToTest = allLinks.take(3).toList();
+
+      final mgr = V2rayManager();
+      mgr.initialize(onStatusChanged: (_) {});
+      final ready = await mgr.ensureInitialized();
+      
+      if (!ready) {
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+            errorMsg = "VPN engine failed to initialize.";
+          });
+        }
+        return;
+      }
+
+      List<ServerModel> testedServers = [];
+
+      for (int i = 0; i < linksToTest.length; i++) {
+        try {
+          final parser = V2ray.parseFromURL(linksToTest[i]);
+          final delay = await mgr.v2ray
+              .getServerDelay(config: parser.getFullConfiguration())
+              .timeout(const Duration(seconds: 3));
+
+          final remark = parser.remark.isNotEmpty ? parser.remark : "Unknown";
+          testedServers.add(ServerModel(
+            id: i.toString(),
+            name: FlagHelper.cleanName(remark),
+            country: remark,
+            flag: FlagHelper.extractFlag(remark),
+            vlessLink: linksToTest[i],
+            ping: delay,
+          ));
+        } catch (e) {
+          debugPrint("Ping fail: $e");
+        }
+      }
+
+      if (testedServers.isNotEmpty) {
+        testedServers.sort((a, b) => a.ping.compareTo(b.ping));
+        if (mounted) {
+          setState(() {
+            servers = testedServers;
+            selectedServer = testedServers.first;
+            isLoading = false;
+          });
+        }
+      } else {
+        try {
+          final parser = V2ray.parseFromURL(linksToTest[0]);
+          final remark = parser.remark.isNotEmpty ? parser.remark : "Default Server";
+          if (mounted) {
+            setState(() {
+              servers = [ServerModel(
+                id: "0",
+                name: FlagHelper.cleanName(remark),
+                country: remark,
+                flag: FlagHelper.extractFlag(remark),
+                vlessLink: linksToTest[0],
+                ping: 999,
+              )];
+              selectedServer = servers.first;
+              isLoading = false;
+            });
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              isLoading = false;
+              errorMsg = "Failed to load servers.";
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // ဒီမှာ ကျန်တဲ့ Error တွေကို ဖမ်းယူပြီး UI ပြမယ်
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMsg = "Unexpected Error: $e";
+        });
       }
     }
   }
@@ -283,6 +297,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     bool d = widget.isDark;
 
+    // Splash & Loading
     if (isSplash || isLoading) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
@@ -311,6 +326,7 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
+    // Error
     if (selectedServer == null) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
@@ -345,7 +361,7 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: d ? const Color(0xFF020513) : const Color(0xFF4FACFE),
       body: Stack(
         children: [
           Positioned.fill(child: SkyBackground(isDark: d)),
@@ -649,7 +665,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       if (mounted) {
         setState(() {
           isConnecting = false;
-          freeTimeRemaining = 300;
+          freeTimeRemaining = 300; // ၅ မိနစ်
           adsWatched = 0;
         });
         _connectVpn();
@@ -1495,172 +1511,6 @@ class PremiumPage extends StatelessWidget {
                 fontSize: 18,
                 fontWeight: FontWeight.bold),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// LOGIN SCREEN
-// ============================================================
-class LoginScreen extends StatelessWidget {
-  final bool isDark;
-  final VoidCallback onLogin;
-
-  const LoginScreen({super.key, required this.isDark, required this.onLogin});
-
-  @override
-  Widget build(BuildContext context) {
-    bool d = isDark;
-    Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
-    Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
-
-    return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(child: SkyBackground(isDark: d)),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      RichText(
-                        text: TextSpan(
-                          text: 'CX ',
-                          style: TextStyle(
-                              fontSize: 23,
-                              fontWeight: FontWeight.w900,
-                              color: txt),
-                          children: const [
-                            TextSpan(
-                                text: 'VPN',
-                                style: TextStyle(color: Color(0xFFFF8A32)))
-                          ],
-                        ),
-                      ),
-                      _glass(
-                          d,
-                          const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          Text("EN",
-                              style: TextStyle(fontSize: 12, color: txt))),
-                    ],
-                  ),
-                  const Spacer(),
-                  Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(26),
-                        gradient: const LinearGradient(colors: [
-                          Color(0xFFFFBD76),
-                          Color(0xFFFF7929)
-                        ])),
-                    child: const Center(
-                        child: Text("ϟ",
-                            style: TextStyle(fontSize: 43, color: Colors.white))),
-                  ),
-                  const SizedBox(height: 25),
-                  RichText(
-                    textAlign: TextAlign.center,
-                    text: TextSpan(
-                      text: 'Your internet.\n',
-                      style: TextStyle(
-                          fontSize: 35,
-                          fontWeight: FontWeight.bold,
-                          height: 1.15,
-                          color: txt),
-                      children: const [
-                        TextSpan(
-                            text: 'Your freedom.',
-                            style: TextStyle(color: Color(0xFFFFB66D)))
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text("Secure, private and connected.",
-                      style: TextStyle(color: mut)),
-                  const Spacer(),
-                  _glass(
-                      d,
-                      const EdgeInsets.all(21),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("GET STARTED",
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 2,
-                                  color: mut)),
-                          const SizedBox(height: 15),
-                          _btn("Continue as Guest", Icons.person_outline, d,
-                              txt, onLogin),
-                          const SizedBox(height: 12),
-                          _btn("Continue with Google", Icons.g_mobiledata, d,
-                              txt, () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text('Google login coming soon!')),
-                            );
-                          }),
-                          const SizedBox(height: 12),
-                          _btn("Continue with Reddit", Icons.forum, d, txt,
-                              () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text('Reddit login coming soon!')),
-                            );
-                          }),
-                        ],
-                      )),
-                  const Spacer(),
-                  Text("POWERED BY CEREBRA X",
-                      style: TextStyle(
-                          fontSize: 10, letterSpacing: 2, color: mut)),
-                ],
-              ),
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _btn(String t, IconData ic, bool d, Color tc, VoidCallback tap) {
-    return GestureDetector(
-      onTap: tap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6),
-          border:
-              Border.all(color: d ? Colors.white.withOpacity(0.14) : Colors.white),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                  color: d ? Colors.white.withOpacity(0.1) : Colors.white,
-                  borderRadius: BorderRadius.circular(12)),
-              child: Icon(ic, size: 20, color: tc),
-            ),
-            const SizedBox(width: 13),
-            Text(t,
-                style: TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w600, color: tc)),
-            const Spacer(),
-            Icon(Icons.arrow_forward_ios,
-                size: 16, color: tc.withOpacity(0.5)),
-          ],
         ),
       ),
     );
