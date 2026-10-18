@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_v2ray/flutter_v2ray.dart';
 
 void main() => runApp(const CXVpnApp());
+
+class ServerModel {
+  final String id, name, country, flag, vlessLink;
+  ServerModel({required this.id, required this.name, required this.country, required this.flag, required this.vlessLink});
+  factory ServerModel.fromJson(Map<String, dynamic> j) => ServerModel(
+    id: j['id'] ?? '', name: j['name'] ?? 'Unknown', country: j['country'] ?? '', flag: j['flag'] ?? '🌐', vlessLink: j['vlessLink'] ?? '');
+}
 
 class CXVpnApp extends StatefulWidget {
   const CXVpnApp({super.key});
@@ -33,24 +43,46 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   bool isSplash = true, isLoggedIn = false;
   int pageIndex = 0; 
+  List<ServerModel> servers = [];
+  ServerModel? selectedServer;
+  bool isLoading = true;
+  
+  // ⚠️ မင်း ပေးလိုက်တဲ့ Raw Link ကို ဒီမှာ ထည့်ထားပါတယ် ⚠️
+  final String url = "https://raw.githubusercontent.com/aungmyingyi/cx-vpn-backend/refs/heads/main/servers.json";
 
   @override
   void initState() {
     super.initState();
+    fetch();
+  }
+
+  Future<void> fetch() async {
+    try {
+      final res = await http.get(Uri.parse(url));
+      if (res.statusCode == 200) {
+        List<dynamic> data = json.decode(res.body);
+        setState(() {
+          servers = data.map((j) => ServerModel.fromJson(j)).toList();
+          if (servers.isNotEmpty) selectedServer = servers[0];
+          isLoading = false;
+        });
+      }
+    } catch (e) { setState(() => isLoading = false); }
     Future.delayed(const Duration(milliseconds: 1500), () { if (mounted) setState(() => isSplash = false); });
   }
 
   @override
   Widget build(BuildContext context) {
     bool d = widget.isDark;
-    if (isSplash) {
+    if (isSplash || isLoading) {
       return Scaffold(backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
         body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Text('CX VPN', style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: d ? Colors.white : Colors.black)),
           const SizedBox(height: 20), const CircularProgressIndicator(color: Color(0xFFFF8A32)),
-          const SizedBox(height: 20), Text('POWERED BY CEREBRA X', style: TextStyle(fontSize: 10, color: d ? Colors.grey : Colors.black54))
+          const SizedBox(height: 20), Text(isLoading ? 'Syncing Servers...' : 'POWERED BY CEREBRA X', style: TextStyle(fontSize: 10, color: d ? Colors.grey : Colors.black54))
         ])));
     }
+    if (selectedServer == null) return Scaffold(backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7), body: Center(child: Text("No servers.\nCheck internet.", textAlign: TextAlign.center, style: TextStyle(color: d ? Colors.white : Colors.black))));
     if (!isLoggedIn) return LoginScreen(isDark: d, onLogin: () => setState(() => isLoggedIn = true));
 
     return Scaffold(
@@ -58,10 +90,9 @@ class _MainScreenState extends State<MainScreen> {
       body: Stack(children: [
         Positioned.fill(child: SkyBackground(isDark: d)),
         SafeArea(child: IndexedStack(index: pageIndex, children: [
-          HomePage(isDark: d, toggle: widget.toggle),
-          const Center(child: Text("Servers Page (Coming Soon)")),
-          const Center(child: Text("Settings Page (Coming Soon)")),
-          const Center(child: Text("Premium Page (Coming Soon)")),
+          HomePage(isDark: d, toggle: widget.toggle, selectedServer: selectedServer!, onNav: () => setState(() => pageIndex = 1)),
+          ServersPage(isDark: d, servers: servers, selected: selectedServer!, onSelect: (s) => setState(() { selectedServer = s; pageIndex = 0; })),
+          const Center(child: Text("Settings Page (Coming Soon)")), const Center(child: Text("Premium Page (Coming Soon)")),
         ])),
         Positioned(bottom: 20, left: 20, right: 20, child: _glass(d, const EdgeInsets.symmetric(vertical: 8, horizontal: 8), Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
@@ -82,15 +113,16 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 class HomePage extends StatefulWidget {
-  final bool isDark; final VoidCallback toggle;
-  const HomePage({super.key, required this.isDark, required this.toggle});
+  final bool isDark; final VoidCallback toggle; final ServerModel selectedServer; final VoidCallback onNav;
+  const HomePage({super.key, required this.isDark, required this.toggle, required this.selectedServer, required this.onNav});
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  bool isConnected = false;
+  bool isConnected = false, isConnecting = false;
   late AnimationController _spin, _glitch;
+  FlutterV2ray? v2ray;
 
   @override
   void initState() {
@@ -101,6 +133,26 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   void dispose() { _spin.dispose(); _glitch.dispose(); super.dispose(); }
+
+  Future<void> connect() async {
+    if (isConnecting) return;
+    if (!isConnected) {
+      setState(() => isConnecting = true);
+      v2ray = FlutterV2ray(onStatusChanged: (s) { if (mounted) setState(() { isConnected = s.state == 'CONNECTED'; isConnecting = false; }); });
+      
+      if (!await v2ray!.requestPermission()) { setState(() => isConnecting = false); return; }
+      
+      await v2ray!.initializeV2Ray();
+      
+      // VPN Error မတက်စေရန် သေချာစစ်ဆေးထားပါတယ်
+      V2rayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
+      
+      await v2ray!.startV2Ray(remark: "CX VPN", config: parser.getFullConfiguration(), proxyOnly: false);
+    } else {
+      await v2ray?.stopV2Ray();
+      setState(() => isConnected = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +180,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: Center(child: RotationTransition(turns: _spin, child: const Icon(Icons.settings_input_component, color: Color(0xFFFFB66D), size: 30)))),
       ]),
       Padding(padding: const EdgeInsets.symmetric(vertical: 40), child: Center(child: Column(children: [
-        RepaintBoundary(child: GestureDetector(onTap: () => setState(() => isConnected = !isConnected), child: Stack(alignment: Alignment.center, children: [
+        RepaintBoundary(child: GestureDetector(onTap: connect, child: Stack(alignment: Alignment.center, children: [
           if (isConnected) ...[
             AnimatedBuilder(animation: _glitch, builder: (c, w) => Transform.translate(offset: Offset(math.sin(_glitch.value * math.pi * 4) * 8, 0), child: Container(width: 150, height: 150, decoration: BoxDecoration(borderRadius: BorderRadius.circular(36), border: Border.all(color: Colors.cyanAccent.withOpacity(0.8), width: 3))))),
             AnimatedBuilder(animation: _glitch, builder: (c, w) => Transform.translate(offset: Offset(math.cos(_glitch.value * math.pi * 4) * -8, 0), child: Container(width: 150, height: 150, decoration: BoxDecoration(borderRadius: BorderRadius.circular(36), border: Border.all(color: Colors.pinkAccent.withOpacity(0.8), width: 3))))),
@@ -137,10 +189,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(36), color: isConnected ? con.withOpacity(0.15) : (d ? Colors.white.withOpacity(0.08) : Colors.white.withOpacity(0.7)),
             border: Border.all(color: isConnected ? con : (d ? Colors.white.withOpacity(0.3) : Colors.white), width: 1.5),
             boxShadow: [BoxShadow(color: isConnected ? con.withOpacity(0.4) : (d ? const Color(0xFFFF8A32).withOpacity(0.15) : Colors.black.withOpacity(0.05)), blurRadius: 45, spreadRadius: 5)],
-          ), child: Center(child: Icon(Icons.power_settings_new, size: 42, color: isConnected ? con : txt))),
+          ), child: Center(child: isConnecting ? const CircularProgressIndicator(color: Color(0xFFFF8A32)) : Icon(Icons.power_settings_new, size: 42, color: isConnected ? con : txt))),
         ]))),
         const SizedBox(height: 25),
-        Text(isConnected ? "CONNECTED" : "NOT CONNECTED", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 2, color: isConnected ? con : txt)),
+        Text(isConnecting ? "CONNECTING..." : (isConnected ? "CONNECTED" : "NOT CONNECTED"), style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 2, color: isConnected ? con : txt)),
         const SizedBox(height: 7), Text(isConnected ? "Your connection is secured" : "Tap to connect securely", style: TextStyle(fontSize: 12, color: mut)),
         const SizedBox(height: 15),
         Container(padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9), decoration: BoxDecoration(color: d ? Colors.white.withOpacity(0.065) : Colors.white.withOpacity(0.7), borderRadius: BorderRadius.circular(99), border: Border.all(color: d ? Colors.white.withOpacity(0.14) : Colors.black12)),
@@ -149,16 +201,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             const SizedBox(width: 8), Text(isConnected ? "Protected" : "Ready to connect", style: TextStyle(fontSize: 11, color: isConnected ? con : mut)),
           ])),
       ]))),
-      _glass(d, const EdgeInsets.all(16), Row(children: [
-        Container(width: 45, height: 45, decoration: BoxDecoration(color: d ? Colors.white.withOpacity(0.1) : Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: d ? Colors.white.withOpacity(0.1) : Colors.black12)), child: const Center(child: Text("🌐", style: TextStyle(fontSize: 22)))),
+      GestureDetector(onTap: widget.onNav, child: _glass(d, const EdgeInsets.all(16), Row(children: [
+        Container(width: 45, height: 45, decoration: BoxDecoration(color: d ? Colors.white.withOpacity(0.1) : Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: d ? Colors.white.withOpacity(0.1) : Colors.black12)), child: Center(child: Text(widget.selectedServer.flag, style: const TextStyle(fontSize: 22)))),
         const SizedBox(width: 15),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text("YOUR LOCATION", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1, color: mut)),
-          const SizedBox(height: 5), Text("Auto Location", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: txt)),
-          const SizedBox(height: 3), Text("Select a server location", style: TextStyle(fontSize: 11, color: mut)),
+          const SizedBox(height: 5), Text(widget.selectedServer.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: txt)),
+          const SizedBox(height: 3), Text(widget.selectedServer.country, style: TextStyle(fontSize: 11, color: mut)),
         ])),
         Icon(Icons.arrow_forward_ios, size: 16, color: mut),
-      ])),
+      ]))),
       const SizedBox(height: 13),
       Row(children: [
         _stat("0 B", "Downloaded", Icons.arrow_downward, d, txt, mut), const SizedBox(width: 10),
@@ -182,6 +234,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _stat(String v, String l, IconData ic, bool d, Color t, Color m) => Expanded(child: _glass(d, const EdgeInsets.all(15), Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
     Icon(ic, color: const Color(0xFFFFB66D), size: 19), const SizedBox(height: 8), Text(v, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: t)), const SizedBox(height: 4), Text(l, style: TextStyle(fontSize: 10, color: m))
   ])));
+}
+
+class ServersPage extends StatelessWidget {
+  final bool isDark; final List<ServerModel> servers; final ServerModel selected; final Function(ServerModel) onSelect;
+  const ServersPage({super.key, required this.isDark, required this.servers, required this.selected, required this.onSelect});
+  @override
+  Widget build(BuildContext context) {
+    bool d = isDark; Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239); Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
+    return SingleChildScrollView(physics: const BouncingScrollPhysics(), padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text("Choose Server", style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold, color: txt)), const SizedBox(height: 5),
+      Text("Select a location for your connection.", style: TextStyle(fontSize: 12, color: mut)), const SizedBox(height: 25),
+      ...servers.map((s) {
+        bool isSel = s.id == selected.id;
+        return GestureDetector(onTap: () => onSelect(s), child: Container(margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16), decoration: BoxDecoration(
+          color: isSel ? const Color(0xFFFF8A32).withOpacity(0.15) : (d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.6)),
+          borderRadius: BorderRadius.circular(20), border: Border.all(color: isSel ? const Color(0xFFFF8A32) : (d ? Colors.white.withOpacity(0.1) : Colors.black12), width: 1.5),
+        ), child: Row(children: [
+          Container(width: 45, height: 45, decoration: BoxDecoration(color: d ? Colors.white.withOpacity(0.1) : Colors.white, borderRadius: BorderRadius.circular(15)), child: Center(child: Text(s.flag, style: const TextStyle(fontSize: 22)))),
+          const SizedBox(width: 15),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(s.name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: txt)), const SizedBox(height: 4), Text(s.country, style: TextStyle(fontSize: 11, color: mut)),
+          ])),
+          if (isSel) const Icon(Icons.check_circle, color: Color(0xFFFF8A32), size: 24) else Icon(Icons.radio_button_unchecked, color: mut, size: 24),
+        ])));
+      }).toList(),
+    ]));
+  }
 }
 
 class LoginScreen extends StatelessWidget {
