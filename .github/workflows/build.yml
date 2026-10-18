@@ -23,10 +23,9 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
-        # Version သတ်မှတ်မထားတော့ဘဲ Stable နောက်ဆုံးထွက်ကို အသုံးပြုစေမယ်
         cache: true
 
-    - name: Create Android folder (v2)
+    - name: Create Android folder
       run: |
         rm -rf android
         flutter create --project-name cx_vpn --platforms=android .
@@ -38,23 +37,20 @@ jobs:
         # 1. Permissions တွေ ထည့်မယ်
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" \/>\n    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" \/>\n\n    <application/' $MANIFEST
 
-        # 2. VPN Service နဲ့ Start.io App ID ကို ထည့်မယ် (application အပိတ် </application> ရှေ့မှာ)
+        # 2. VPN Service နဲ့ Start.io App ID ကို ထည့်မယ်
         sed -i 's|</application>|    <service android:name="com.flutter_v2ray_client.V2RayVpnService" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="false" android:foregroundServiceType="specialUse">\n            <intent-filter>\n                <action android:name="android.net.VpnService"/>\n            </intent-filter>\n        </service>\n        <meta-data android:name="com.startapp.sdk.APPLICATION_ID" android:value="209308326" \/>\n        <meta-data android:name="com.startapp.sdk.RETURN_ADS_ENABLED" android:value="false" \/>\n    <\/application>|' $MANIFEST
 
-    - name: Fix Android SDK and NDK Versions
+    - name: Fix Android SDK, NDK & AGP Versions (.kts files)
       run: |
-        # build.gradle ဖိုင်ထဲက SDK Version တွေကို ပြောင်းမယ်
-        sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
-        sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/' android/app/build.gradle
-        sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 36/' android/app/build.gradle
-        # NDK Version ကို သတ်မှတ်မယ်
-        sed -i 's/ndkVersion flutter.ndkVersion/ndkVersion "27.0.12077973"/' android/app/build.gradle
+        # 1. app/build.gradle.kts ထဲက SDK နဲ့ NDK Version တွေကို ပြောင်းမယ်
+        sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/' android/app/build.gradle.kts
+        sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
+        sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' android/app/build.gradle.kts
+        sed -i 's/ndkVersion = flutter.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
 
-    - name: Fix Android Gradle Plugin (AGP)
-      run: |
-        # SDK 36 ကို ထောက်ပံ့ဖို့ AGP ကို 8.5.0 ကို ပြောင်းမယ်
-        sed -i 's/com.android.application" version ".*"/com.android.application" version "8.5.0"/' android/settings.gradle
-        sed -i 's/com.android.library" version ".*"/com.android.library" version "8.5.0"/' android/settings.gradle
+        # 2. settings.gradle.kts ထဲက AGP Version ကို 8.5.0 ကို ပြောင်းမယ်
+        sed -i 's/id("com.android.application") version ".*" apply false/id("com.android.application") version "8.5.0" apply false/' android/settings.gradle.kts
+        sed -i 's/id("com.android.library") version ".*" apply false/id("com.android.library") version "8.5.0" apply false/' android/settings.gradle.kts
 
     - name: Fix AAPT2 Version for SDK 36
       run: |
