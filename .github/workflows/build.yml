@@ -22,7 +22,7 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
-        version: 'latest' # <--- အသစ်ဆုံး Version ကို သုံးခိုင်းခြင်း
+        version: 'latest'
         
     - name: Create missing platform folders
       run: flutter create --project-name cx_vpn .
@@ -31,10 +31,10 @@ jobs:
       run: flutter pub get
       
     - name: Build APK
-      run: flutter build apk --release
+      run: flutter build apk --release --split-per-abi # <--- ဒီနေရာမှာ ပြောင်းထားပါတယ်
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: cx-vpn-apk
-        path: build/app/outputs/flutter-apk/app-release.apk
+        path: build/app/outputs/flutter-apk/*.apk # <--- APK အားလုံးကို ယူခိုင်းခြင်း
