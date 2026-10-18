@@ -23,7 +23,9 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
-        # version: 'latest' ဆိုတာ ဖျက်လိုက်ပါပြီ (သူ့အလိုလို latest ကို ယူသွားပါလိမ့်မယ်)
+        # ဒီနေရာမှာ Flutter version ကို သတ်မှတ်ပေးလိုက်ပါတယ်
+        flutter-version: '3.19.6' 
+        cache: true
 
     - name: Create Android folder if missing
       run: |
