@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_v2ray_client/flutter_v2ray.dart'; 
+import 'package:unity_ads_plugin/unity_ads_plugin.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Unity Ads ကို စတင် Initialize လုပ်မယ်
+  await UnityAds.init(
+    gameId: '800403175', // သင့် Game ID (ပုံထဲကအတိုင်း)
+    testMode: true,     // စမ်းသပ်နေတဲ့အတွက် True ထားပါ။ App Store တင်မယ်ဆိုရင် False ပြောင်းပါ
+  );
+  
   runApp(const CXVpnApp());
 }
 
@@ -73,9 +83,6 @@ class _MainScreenState extends State<MainScreen> {
     "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub1.txt",
     "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub2.txt",
     "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub3.txt",
-    "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub4.txt",
-    "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub5.txt",
-    "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub6.txt",
   ];
 
   @override
@@ -88,16 +95,12 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> fetchAndTest() async {
-    setState(() {
-      isLoading = true;
-      errorMsg = null;
-    });
-
+    setState(() { isLoading = true; errorMsg = null; });
     List<String> allLinks = [];
 
     for (String url in subUrls) {
       try {
-        final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
+        final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
         if (res.statusCode == 200) {
           List<String> links = res.body
               .split('\n')
@@ -110,34 +113,25 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     if (allLinks.isEmpty) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          errorMsg = "No valid links found from subscriptions.";
-        });
-      }
+      if (mounted) setState(() { isLoading = false; errorMsg = "No valid links found."; });
       return;
     }
 
-    List<String> linksToTest = allLinks.take(15).toList();
+    List<String> linksToTest = allLinks.take(8).toList();
     List<ServerModel> testedServers = [];
-
     V2ray v2ray = V2ray(onStatusChanged: (status) {});
 
     for (int i = 0; i < linksToTest.length; i++) {
-      String link = linksToTest[i];
       try {
-        final parser = V2ray.parseFromURL(link);
-        final delay = await v2ray.getServerDelay(
-          config: parser.getFullConfiguration(),
-        );
+        final parser = V2ray.parseFromURL(linksToTest[i]);
+        final delay = await v2ray.getServerDelay(config: parser.getFullConfiguration()).timeout(const Duration(seconds: 3));
 
         testedServers.add(ServerModel(
           id: i.toString(),
           name: "Server ${i + 1}",
           country: parser.remark.isNotEmpty ? parser.remark : "Unknown",
           flag: "🌐",
-          vlessLink: link,
+          vlessLink: linksToTest[i],
           ping: delay,
         ));
       } catch (e) {}
@@ -153,12 +147,7 @@ class _MainScreenState extends State<MainScreen> {
         });
       }
     } else {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          errorMsg = "Failed to ping servers.";
-        });
-      }
+      if (mounted) setState(() { isLoading = false; errorMsg = "Failed to ping servers."; });
     }
   }
 
@@ -320,6 +309,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   int totalUpload = 0;
   int ping = 0;
 
+  // --- ကြော်ငြာနဲ့ အချိန်စနစ် ---
+  int adsWatched = 0; 
+  int freeTimeRemaining = 0; // ကျန်ရှိတဲ့ အချိန် (စက္ကန့်)
+  Timer? _timer;
+
   @override
   void initState() {
     super.initState();
@@ -337,14 +331,152 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           totalDownload = status.download ?? 0;
           totalUpload = status.upload ?? 0;
         });
+        
         if (isConnected) {
           if (!_glitch.isAnimating) _glitch.repeat(reverse: true);
           _fetchPing();
+          _startTimer(); 
         } else {
           _glitch.stop();
+          _stopTimer();
         }
       },
     );
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        if (freeTimeRemaining > 0) {
+          freeTimeRemaining--;
+        } else {
+          // အချိန်ကုန်သွားရင် ကွန်နက်ရှင် ဖြတ်မယ်
+          _timer?.cancel();
+          v2ray.stopV2Ray();
+          _showWatchAdDialog(); 
+        }
+      });
+    });
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+  }
+
+  String _formatTime(int seconds) {
+    int h = seconds ~/ 3600;
+    int m = (seconds % 3600) ~/ 60;
+    int s = seconds % 60;
+    if (h > 0) {
+      return "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
+    }
+    return "${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
+  }
+
+  void _showWatchAdDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        bool d = widget.isDark;
+        Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
+        Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
+
+        return AlertDialog(
+          backgroundColor: d ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Column(
+            children: [
+              const Icon(Icons.play_circle_fill, color: Color(0xFFFF8A32), size: 50),
+              const SizedBox(height: 10),
+              Text("Get 1 Hour Free", style: TextStyle(color: txt, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            "Watch 2 short videos to unlock 1 hour of free VPN time.\n\n⚠️ If you exit the video early, you won't get the time.",
+            textAlign: TextAlign.center,
+            style: TextStyle(color: mut, fontSize: 13),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _startWatchingAds(); 
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A32)),
+              child: const Text("Watch Videos", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _startWatchingAds() async {
+    setState(() => isConnecting = true);
+    adsWatched = 0;
+
+    // ပထမ ကြော်ငြာ
+    await _showUnityAd();
+    
+    // ပထမ ကြော်ငြာ ပြီးမှ ဒုတိယ ကြော်ငြာ ပြမယ်
+    if (adsWatched == 1) {
+      await _showUnityAd();
+    }
+
+    // ကြော်ငြာ ၂ ခုလုံး အောင်မြင်ရင် ၁ နာရီ ပေးမယ်
+    if (adsWatched >= 2) {
+      if (mounted) {
+        setState(() {
+          isConnecting = false;
+          freeTimeRemaining = 60 * 60; // ၁ နာရီ
+          adsWatched = 0;
+        });
+        _connectVpn();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Success! You got 1 Hour Free.')),
+        );
+      }
+    } else {
+      if (mounted) {
+        setState(() { isConnecting = false; isConnected = false; });
+        _glitch.stop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You need to watch both videos completely to get time.')),
+        );
+      }
+    }
+  }
+
+  // ✅ ပြင်ဆင်ပြီးသား Unity Ad Function
+  Future<void> _showUnityAd() async {
+    bool adCompleted = false;
+
+    UnityAds.showVideoAd(
+      placementId: 'BP_Rewarded_Android', 
+      listener: (status, error) {
+        if (status == UnityAdFinishStatus.completed) {
+          adCompleted = true;
+          adsWatched++; 
+        } else if (status == UnityAdFinishStatus.skipped) {
+          // အလယ်မှာ ထွက်သွားရင် (Skip လုပ်ရင်) ဘာမှ မလုပ်ဘူး
+        } else if (status == UnityAdFinishStatus.failed) {
+          // Error တက်ရင် အသိပေးမယ်
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Ad failed to load: $error')),
+          );
+        }
+      },
+    );
+
+    // ကြော်ငြာ ပြီးတဲ့အထိ (ဒါမှမဟုတ် ထွက်သွားတဲ့အထိ) စောင့်မယ်
+    while (!adCompleted) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!isConnecting) break;
+    }
   }
 
   Future<void> _fetchPing() async {
@@ -358,16 +490,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void dispose() {
     _spin.dispose();
     _glitch.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
-  Future<void> connect() async {
+  Future<void> _connectVpn() async {
     if (isConnecting) return;
-
-    if (isConnected) {
-      await v2ray.stopV2Ray();
-      return;
-    }
 
     setState(() => isConnecting = true);
 
@@ -400,6 +528,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Connection failed: $e')));
       }
     }
+  }
+
+  Future<void> connect() async {
+    if (isConnecting) return;
+
+    if (isConnected) {
+      await v2ray.stopV2Ray();
+      return;
+    }
+
+    if (freeTimeRemaining <= 0) {
+      _showWatchAdDialog();
+      return;
+    }
+
+    _connectVpn();
   }
 
   String _formatSpeed(int bytes) {
@@ -526,6 +670,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   Text(isConnecting ? "CONNECTING..." : (isConnected ? "CONNECTED" : "NOT CONNECTED"), style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, letterSpacing: 2, color: isConnected ? con : txt)),
                   const SizedBox(height: 7),
                   Text(isConnected ? "Your connection is secured" : "Tap to connect securely", style: TextStyle(fontSize: 12, color: mut)),
+                  
+                  if (isConnected)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 15),
+                      child: Text(
+                        "Time Remaining: ${_formatTime(freeTimeRemaining)}",
+                        style: TextStyle(fontSize: 14, color: con, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+
                   const SizedBox(height: 15),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
