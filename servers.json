@@ -1,16 +1,16 @@
 [
   {
     "id": "1",
-    "name": "Japan 1",
-    "country": "Asia Pacific",
+    "name": "Japan (TCP)",
+    "country": "Japan",
     "flag": "🇯🇵",
-    "vlessLink": "vless://e13cf851-b4fd-413b-8d49-146e6eb8e5d4@platform115.golnamakcert.top:80?path=%2Fplatform115&security=&encryption=none&host=platform115.halalkhor.info&type=ws&sni=platform115.halalkhor.info#%F0%9F%8F%B3%5Bwww.v2nodes.com%5D%20vless-"
+    "vlessLink": "vmess://eyJhZGQiOiJvYy5pbWZ1bi5mdW4iLCJhaWQiOiIwIiwiYWxwbiI6IiIsImZwIjoiIiwiaG9zdCI6IiIsImlkIjoiYWQ0NWY4ZjYtMGYwYS00Y2M0LWI5MDctYzQ1ODI0MDdkYzk0IiwibmV0IjoidGNwIiwicGF0aCI6Ii8iLCJwb3J0IjoiMTgxMTIiLCJwcyI6IvCfh6/wn4e1W3d3dy52Mm5vZGVzLmNvbV0gdm1lc3MtSlAtMTU5OTY1MjgiLCJzY3kiOiJhdXRvIiwic25pIjoiIiwidGxzIjoibm9uZSIsInR5cGUiOiIiLCJ2IjoiMiJ9"
   },
   {
     "id": "2",
-    "name": "Singapore 1",
-    "country": "Asia Pacific",
-    "flag": "🇸🇬",
-    "vlessLink": "vless://082f5694-9019-4110-b67b-8125dbb9bab8@104.19.214.15:2087?type=ws&security=tls&path=%2F#CX_VPN_Server1"
+    "name": "Global (WS)",
+    "country": "Global",
+    "flag": "🌐",
+    "vlessLink": "vmess://eyJhZGQiOiIxNjguMTEzLjIxNS42IiwiYWlkIjoiMCIsImFscG4iOiIiLCJmcCI6IiIsImhvc3QiOiJubC0yYTk3MmM4MDUyLnNoYW1hbmFwcC5vbmxpbmUiLCJpZCI6IjEyODFhY2NhLWYyMWQtNDc1Yy1iZjA0LWVjY2JlZTdmOGRmMiIsIm5ldCI6IndzIiwicGF0aCI6Ii92bWVzcy13cyIsInBvcnQiOiIzMzczNiIsInBzIjoiLvCWpZQg3YEgy5bWtPCfm7jgvITLlsKwLiB8IFsqQ0lEUl0iLCJzY3kiOiJhdXRvIiwic25pIjoiIiwidGxzIjoiIiwidHlwZSI6Im5vbmUiLCJ2IjoiMiJ9"
   }
 ]
