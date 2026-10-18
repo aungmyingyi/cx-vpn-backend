@@ -45,10 +45,11 @@ jobs:
       run: |
         echo "android.aapt2Version=8.6.1-11315950" >> android/gradle.properties
 
-    # ✅ Kotlin Version ကို အလိုအလျောက် ပြောင်းပေးမယ့် အဆင့်အသစ်
+    # ✅ ဒီနေရာမှာ Kotlin Version ကို ပြင်မယ်
     - name: Fix Kotlin Version
       run: |
         sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.23"/' android/build.gradle
+        sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.23"/' android/settings.gradle
 
     - name: Install dependencies
       run: flutter pub get
