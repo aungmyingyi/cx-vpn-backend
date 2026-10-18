@@ -101,6 +101,7 @@ class _MainScreenState extends State<MainScreen> {
   ServerModel? selectedServer;
   bool isLoadingServers = true;
 
+  // ⚠️ မင်း ရဲ့ Live Update Link ကို ဒီမှာ ထည့်ထားပါတယ် ⚠️
   final String serverListUrl = "https://raw.githubusercontent.com/aungmyingyi/cx-vpn-backend/refs/heads/main/servers.json";
 
   @override
@@ -164,7 +165,7 @@ class _MainScreenState extends State<MainScreen> {
       return Scaffold(
         backgroundColor: isDark ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
         body: Center(
-          child: Text("No servers available.\nCheck your internet.", textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+          child: Text("No servers available.\nCheck your internet connection.", textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
         ),
       );
     }
@@ -252,7 +253,7 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 // ==========================================
-// HOME PAGE
+// HOME PAGE (VPN LOGIC)
 // ==========================================
 class HomePage extends StatefulWidget {
   final bool isDark;
@@ -321,8 +322,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       await flutterV2ray!.initializeV2Ray();
       
-      // သေချာစစ်ပြီး ရေးထားပါတယ် (V2RayURL လို့ ရေးရပါမယ်)
-      V2RayURL parser = V2RayURL(link: widget.selectedServer.vlessLink);
+      // Error မတက်စေရန် V2rayURL (r အသေး) သို့ ပြောင်းထားပါတယ်
+      V2rayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
       
       await flutterV2ray!.startV2Ray(
         remark: "CX VPN",
