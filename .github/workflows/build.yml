@@ -23,15 +23,14 @@ jobs:
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
-        # ဒီနေရာမှာ Flutter version ကို သတ်မှတ်ပေးလိုက်ပါတယ်
         flutter-version: '3.19.6' 
         cache: true
 
-    - name: Create Android folder if missing
+    # Android Folder အဟောင်းတွေ ရှိနေရင် ဖျက်ပြီး အသစ် (v2) ပြန်ဖန်တီးခိုင်းခြင်း
+    - name: Create Android folder if missing or old
       run: |
-        if [ ! -d "android" ]; then
-          flutter create --project-name cx_vpn --platforms=android .
-        fi
+        rm -rf android
+        flutter create --project-name cx_vpn --platforms=android .
 
     - name: Add Permissions to AndroidManifest
       run: |
