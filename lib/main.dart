@@ -100,6 +100,26 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  // Glass Container Helper Method moved inside State class for proper scoping
+  Widget _glass(bool d, EdgeInsets p, Widget c) {
+    return Container(
+      padding: p,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: d ? Colors.white.withOpacity(0.15) : Colors.white, width: 1.5),
+        color: d ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white.withOpacity(0.7),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            spreadRadius: 1,
+          )
+        ],
+      ),
+      child: c,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     bool d = widget.isDark;
@@ -141,7 +161,13 @@ class _MainScreenState extends State<MainScreen> {
             child: IndexedStack(
               index: pageIndex,
               children: [
-                HomePage(isDark: d, toggle: widget.toggle, selectedServer: selectedServer!, onNav: () => setState(() => pageIndex = 1)),
+                HomePage(
+                  isDark: d, 
+                  toggle: widget.toggle, 
+                  selectedServer: selectedServer!, 
+                  onNav: () => setState(() => pageIndex = 1),
+                  glassBuilder: _glass,
+                ),
                 ServersPage(isDark: d, servers: servers, selected: selectedServer!, onSelect: (s) => setState(() { selectedServer = s; pageIndex = 0; })),
                 const Center(child: Text("Settings Page (Coming Soon)")),
                 const Center(child: Text("Premium Page (Coming Soon)")),
@@ -186,11 +212,13 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 }
+
 class HomePage extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggle;
   final ServerModel selectedServer;
   final VoidCallback onNav;
+  final Widget Function(bool, EdgeInsets, Widget) glassBuilder;
 
   const HomePage({
     super.key,
@@ -198,6 +226,7 @@ class HomePage extends StatefulWidget {
     required this.toggle,
     required this.selectedServer,
     required this.onNav,
+    required this.glassBuilder,
   });
 
   @override
@@ -245,7 +274,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       await v2ray!.initializeV2Ray();
       
-      // Error မတက်စေရန် V2rayURL (r အသေး) ကို သေချာသုံးထားပါတယ်
       V2rayURL parser = V2rayURL(link: widget.selectedServer.vlessLink);
       
       await v2ray!.startV2Ray(
@@ -441,7 +469,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
           GestureDetector(
             onTap: widget.onNav,
-            child: _glass(
+            child: widget.glassBuilder(
               d,
               const EdgeInsets.all(16),
               Row(
@@ -485,7 +513,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 15),
-          _glass(
+          widget.glassBuilder(
             d,
             const EdgeInsets.all(16),
             Row(
@@ -530,7 +558,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   Widget _stat(String v, String l, IconData ic, bool d, Color t, Color m) {
     return Expanded(
-      child: _glass(
+      child: widget.glassBuilder(
         d,
         const EdgeInsets.all(15),
         Column(
@@ -547,6 +575,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 }
+
 class ServersPage extends StatelessWidget {
   final bool isDark;
   final List<ServerModel> servers;
@@ -622,7 +651,7 @@ class ServersPage extends StatelessWidget {
                 ),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -634,6 +663,25 @@ class LoginScreen extends StatelessWidget {
   final VoidCallback onLogin;
 
   const LoginScreen({super.key, required this.isDark, required this.onLogin});
+
+  Widget _glass(bool d, EdgeInsets p, Widget c) {
+    return Container(
+      padding: p,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: d ? Colors.white.withOpacity(0.15) : Colors.white, width: 1.5),
+        color: d ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white.withOpacity(0.7),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            spreadRadius: 1,
+          )
+        ],
+      ),
+      child: c,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -901,23 +949,4 @@ class TreeP extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter old) => true;
-}
-
-Widget _glass(bool d, EdgeInsets p, Widget c) {
-  return Container(
-    padding: p,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: d ? Colors.white.withOpacity(0.15) : Colors.white, width: 1.5),
-      color: d ? const Color(0xFF1E293B).withOpacity(0.6) : Colors.white.withOpacity(0.7),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.05),
-          blurRadius: 10,
-          spreadRadius: 1,
-        )
-      ],
-    ),
-    child: c,
-  );
 }
