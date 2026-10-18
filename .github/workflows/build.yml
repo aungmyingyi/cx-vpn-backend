@@ -23,11 +23,9 @@ jobs:
       with:
         channel: 'stable'
         
-    # ဒီအဆင့်က android folder ကို အလိုအလျောက် သွားဆောက်ပေးမှာပါ
     - name: Create missing platform folders
       run: flutter create --project-name cx_vpn .
 
-    # ဒီအဆင့်က VPN အတွက် လိုအပ်တဲ့ Permission တွေကို အလိုအလျောက် ထည့်ပေးမှာပါ
     - name: Inject VPN Service into AndroidManifest
       run: |
         python3 - <<'EOF'
@@ -51,6 +49,27 @@ jobs:
             content = content.replace('</application>', service_xml + '</application>')
             with open(file_path, 'w') as f:
                 f.write(content)
+        EOF
+
+    # အရေးကြီးဆုံးအပိုင်း - Android Build Setting များကို ပြင်ဆင်ခြင်း
+    - name: Configure Android Gradle for VPN
+      run: |
+        python3 - <<'EOF'
+        import re
+        file_path = 'android/app/build.gradle'
+        with open(file_path, 'r') as f:
+            content = f.read()
+
+        # compileSdkVersion ကို 34 သို့မဟုတ် အထက်သို့ ပြောင်းခြင်း
+        content = re.sub(r'compileSdk\s+\d+', 'compileSdk 34', content)
+        content = re.sub(r'compileSdkVersion\s+\d+', 'compileSdkVersion 34', content)
+        
+        # minSdkVersion ကို 21 (သို့) 24 သို့ ပြောင်းခြင်း
+        content = re.sub(r'minSdk\s+flutter\.minSdkVersion', 'minSdk 21', content)
+        content = re.sub(r'minSdkVersion\s+flutter\.minSdkVersion', 'minSdkVersion 21', content)
+
+        with open(file_path, 'w') as f:
+            f.write(content)
         EOF
       
     - name: Install dependencies
