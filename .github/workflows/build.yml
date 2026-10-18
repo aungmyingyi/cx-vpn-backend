@@ -35,11 +35,17 @@ jobs:
       run: |
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/>\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" \/>\n\n    <application/' android/app/src/main/AndroidManifest.xml
 
+    # ✅ Android SDK ကို 36 သတ်မှတ်ခြင်း (Start.io SDK အသစ်အတွက်)
     - name: Fix Android SDK Versions
       run: |
         sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/' android/app/build.gradle
-        sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 34/' android/app/build.gradle
-        sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 34/' android/app/build.gradle
+        sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/' android/app/build.gradle
+        sed -i 's/targetSdkVersion flutter.targetSdkVersion/targetSdkVersion 36/' android/app/build.gradle
+
+    # ✅ AAPT2 version ကို SDK 36 နဲ့ ကိုက်ညီအောင် သတ်မှတ်ခြင်း
+    - name: Fix AAPT2 Version for SDK 36
+      run: |
+        echo "android.aapt2Version=8.6.1-11315950" >> android/gradle.properties
 
     - name: Install dependencies
       run: flutter pub get
