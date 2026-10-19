@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK & Windows
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build-android:
     runs-on: ubuntu-latest
 
     steps:
@@ -42,17 +42,21 @@ jobs:
 
     - name: Fix Android SDK, NDK & AGP Versions (.kts files)
       run: |
+        # minSdk ကို 21 သတ်မှတ်မယ် (Android 5.0 အထက် အကုန်ရစေရန်)
         sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/' android/app/build.gradle.kts
-        sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
-        sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' android/app/build.gradle.kts
+        # compileSdk နဲ့ targetSdk ကို 34 ပြောင်းမယ် (Stable ဖြစ်ပြီး Play Store စံချိန်မီရန်)
+        sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 34/' android/app/build.gradle.kts
+        sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 34/' android/app/build.gradle.kts
+        # NDK Version ကို သတ်မှတ်မယ်
         sed -i 's/ndkVersion = flutter.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
 
-        sed -i 's/id("com.android.application") version "[^"]*" apply false/id("com.android.application") version "8.11.1" apply false/' android/settings.gradle.kts
-        sed -i 's/id("com.android.library") version "[^"]*" apply false/id("com.android.library") version "8.11.1" apply false/' android/settings.gradle.kts
+        # AGP (Android Gradle Plugin) ကို 8.1.0 ပြောင်းမယ်
+        sed -i 's/id("com.android.application") version "[^"]*" apply false/id("com.android.application") version "8.1.0" apply false/' android/settings.gradle.kts
+        sed -i 's/id("com.android.library") version "[^"]*" apply false/id("com.android.library") version "8.1.0" apply false/' android/settings.gradle.kts
 
     - name: Fix AAPT2 Version and Add Gradle Properties
       run: |
-        echo "android.aapt2Version=8.6.1-11315950" >> android/gradle.properties
+        echo "android.aapt2Version=8.1.0-10154469" >> android/gradle.properties
         echo "android.newDsl=false" >> android/gradle.properties
 
     - name: Clean and Install dependencies
@@ -63,8 +67,53 @@ jobs:
     - name: Build APKs (split per ABI)
       run: flutter build apk --release --split-per-abi
 
-    - name: Upload APK (arm64-v8a)
+    - name: Upload APK (arm64-v8a - For Modern Phones)
       uses: actions/upload-artifact@v4
       with:
         name: cx-vpn-arm64-v8a
         path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+
+    - name: Upload APK (armeabi-v7a - For Old Phones)
+      uses: actions/upload-artifact@v4
+      with:
+        name: cx-vpn-armeabi-v7a
+        path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        cache: true
+
+    - name: Create Windows folder
+      run: |
+        if (Test-Path -Path "windows") { Remove-Item -Recurse -Force "windows" }
+        flutter create --project-name cx_vpn --platforms=windows .
+
+    - name: Enable Windows Desktop
+      run: flutter config --enable-windows-desktop
+
+    - name: Clean and Install dependencies
+      run: |
+        flutter clean
+        flutter pub get
+
+    - name: Build Windows App
+      run: flutter build windows
+
+    - name: Zip Windows App
+      run: |
+        Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath build\windows\cx-vpn-windows.zip
+
+    - name: Upload Windows App
+      uses: actions/upload-artifact@v4
+      with:
+        name: cx-vpn-windows
+        path: build/windows/cx-vpn-windows.zip
