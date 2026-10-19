@@ -43,7 +43,6 @@ jobs:
     - name: Fix Android SDK, NDK & AGP Versions (.kts files)
       run: |
         sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/' android/app/build.gradle.kts
-        # SDK Version ကို 34 မှ 36 သို့ ပြောင်းလဲခြင်း (startapp_sdk လိုအပ်ချက်)
         sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/' android/app/build.gradle.kts
         sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/' android/app/build.gradle.kts
         sed -i 's/ndkVersion = flutter.ndkVersion/ndkVersion = "27.0.12077973"/' android/app/build.gradle.kts
