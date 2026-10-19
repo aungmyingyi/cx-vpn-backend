@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # Error တက်နေတဲ့ 3.6.1 ကနေ 3.5.0 ကို ပြောင်းထားပါတယ်
   flutter_v2ray_client: ^3.5.0  
   http: ^1.1.0
   startapp_sdk: ^1.0.1
