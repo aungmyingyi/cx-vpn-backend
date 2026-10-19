@@ -1,43 +1,58 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:flutter_v2ray_client/flutter_v2ray.dart';
-import 'package:startapp_sdk/startapp.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    final startAppSdk = StartAppSdk();
-    if (kDebugMode) startAppSdk.setTestAdsEnabled(true);
-  } catch (e) { debugPrint("Ad Error: $e"); }
   runApp(const CXVpnApp());
 }
 
+// ============================================================
+// V2RAY SINGLETON MANAGER
+// ============================================================
 class V2rayManager {
   V2rayManager._();
   static final V2rayManager _instance = V2rayManager._();
   factory V2rayManager() => _instance;
+
   late final V2ray v2ray;
   bool _initialized = false;
+
   void initialize({required Function(dynamic) onStatusChanged}) {
     v2ray = V2ray(onStatusChanged: onStatusChanged);
   }
+
   Future<bool> ensureInitialized() async {
     if (_initialized) return true;
     try {
-      await v2ray.initialize(notificationIconResourceType: "mipmap", notificationIconResourceName: "ic_launcher");
+      await v2ray.initialize(
+        notificationIconResourceType: "mipmap",
+        notificationIconResourceName: "ic_launcher",
+      );
       _initialized = true;
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      return false;
+    }
   }
 }
 
+// ============================================================
+// SERVER MODEL & FLAG HELPER
+// ============================================================
 class ServerModel {
   final String id, name, country, flag, vlessLink;
   int ping;
-  ServerModel({required this.id, required this.name, required this.country, required this.flag, required this.vlessLink, this.ping = 9999});
+  ServerModel({
+    required this.id,
+    required this.name,
+    required this.country,
+    required this.flag,
+    required this.vlessLink,
+    this.ping = 9999,
+  });
 }
 
 class FlagHelper {
@@ -46,6 +61,9 @@ class FlagHelper {
   static String cleanName(String remark) => remark.replaceAll(_emojiRegex, '').replaceAll(RegExp(r'[|\-_]+'), ' ').trim();
 }
 
+// ============================================================
+// APP ROOT
+// ============================================================
 class CXVpnApp extends StatefulWidget {
   const CXVpnApp({super.key});
   @override
@@ -66,6 +84,9 @@ class _CXVpnAppState extends State<CXVpnApp> {
   }
 }
 
+// ============================================================
+// MAIN SCREEN
+// ============================================================
 class MainScreen extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggle;
@@ -111,7 +132,9 @@ class _MainScreenState extends State<MainScreen> {
           List<String> links = res.body.split('\n').map((e) => e.trim()).where((e) => e.startsWith('vless://') || e.startsWith('vmess://') || e.startsWith('trojan://')).toList();
           allLinks.addAll(links);
         }
-      } catch (e) { debugPrint("Fetch err: $e"); }
+      } catch (e) {
+        debugPrint("Fetch err: $e");
+      }
     }
 
     if (allLinks.isEmpty) {
@@ -125,6 +148,7 @@ class _MainScreenState extends State<MainScreen> {
     final mgr = V2rayManager();
     mgr.initialize(onStatusChanged: (_) {});
     final ready = await mgr.ensureInitialized();
+    
     if (!ready) {
       if (mounted) setState(() { isLoading = false; errorMsg = "VPN engine failed."; });
       return;
@@ -138,7 +162,9 @@ class _MainScreenState extends State<MainScreen> {
         final delay = await mgr.v2ray.getServerDelay(config: parser.getFullConfiguration()).timeout(const Duration(seconds: 1));
         final remark = parser.remark.isNotEmpty ? parser.remark : "Unknown";
         testedServers.add(ServerModel(id: i.toString(), name: FlagHelper.cleanName(remark), country: remark, flag: FlagHelper.extractFlag(remark), vlessLink: linksToTest[i], ping: delay));
-      } catch (e) { debugPrint("Ping err: $e"); }
+      } catch (e) {
+        debugPrint("Ping err: $e");
+      }
     }
 
     if (testedServers.isNotEmpty) {
@@ -213,6 +239,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
+// ============================================================
+// HOME PAGE (No Ads, 1 Hour Free)
+// ============================================================
 class HomePage extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggle;
@@ -228,8 +257,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late AnimationController _spin, _glitch;
   final V2rayManager _mgr = V2rayManager();
   int downloadSpeed = 0, uploadSpeed = 0, totalDownload = 0, totalUpload = 0, ping = 0;
-  final StartAppSdk startAppSdk = StartAppSdk();
-  int adsWatched = 0, freeTimeRemaining = 300;
+  
+  // အချိန် ၁ နာရီ (၃၆၀၀ စက္ကန့်)
+  int freeTimeRemaining = 3600; 
+  
   Timer? _timer;
   bool _timeExpiredDialogShown = false;
 
@@ -250,26 +281,44 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         downloadSpeed = status.downloadSpeed ?? 0; uploadSpeed = status.uploadSpeed ?? 0;
         totalDownload = status.download ?? 0; totalUpload = status.upload ?? 0;
       });
-      if (connected) { if (!_glitch.isAnimating) _glitch.repeat(reverse: true); _fetchPing(); _startTimer(); } else { _glitch.stop(); _stopTimer(); }
-    } catch (e) { debugPrint("Status Error: $e"); }
+      if (connected) {
+        if (!_glitch.isAnimating) _glitch.repeat(reverse: true);
+        _fetchPing();
+        _startTimer();
+      } else {
+        _glitch.stop();
+        _stopTimer();
+      }
+    } catch (e) {
+      debugPrint("Status Error: $e");
+    }
   }
 
   void _startTimer() {
-    _timer?.cancel(); _timeExpiredDialogShown = false;
+    _timer?.cancel();
+    _timeExpiredDialogShown = false;
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) { timer.cancel(); return; }
-      if (freeTimeRemaining > 0) setState(() => freeTimeRemaining--); else { timer.cancel(); _handleTimeExpired(); }
+      if (freeTimeRemaining > 0) {
+        setState(() => freeTimeRemaining--);
+      } else {
+        timer.cancel();
+        _handleTimeExpired();
+      }
     });
   }
 
-  void _stopTimer() { _timer?.cancel(); _timer = null; }
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
 
   Future<void> _handleTimeExpired() async {
     if (_timeExpiredDialogShown) return;
     _timeExpiredDialogShown = true;
     try { await _mgr.v2ray.stopV2Ray(); } catch (e) { debugPrint("Stop err: $e"); }
     if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _showWatchAdDialog(); });
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _showTimeExpiredDialog(); });
   }
 
   String _formatTime(int seconds) {
@@ -278,81 +327,92 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     return "${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
   }
 
-  void _showWatchAdDialog() {
+  // ကြော်ငြာ မပါတဲ့ ရိုးရိုး Dialog
+  void _showTimeExpiredDialog() {
     showDialog(context: context, barrierDismissible: false, builder: (context) {
       bool d = widget.isDark;
       Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
       Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
       return AlertDialog(
-        backgroundColor: d ? const Color(0xFF1E293B) : Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Column(children: [const Icon(Icons.play_circle_fill, color: Color(0xFFFF8A32), size: 50), const SizedBox(height: 10), Text("Get Free Time", style: TextStyle(color: txt, fontWeight: FontWeight.bold))]),
-        content: Text("Watch 2 short videos to unlock free VPN time.\n\n⚠️ If you exit the video early, you won't get the time.", textAlign: TextAlign.center, style: TextStyle(color: mut, fontSize: 13)),
+        backgroundColor: d ? const Color(0xFF1E293B) : Colors.white, 
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Column(children: [
+          const Icon(Icons.timer_off, color: Color(0xFFFF8A32), size: 50), 
+          const SizedBox(height: 10), 
+          Text("Time Expired", style: TextStyle(color: txt, fontWeight: FontWeight.bold))
+        ]),
+        content: Text("Your free time has ended. Tap below to get another 1 hour for free.", textAlign: TextAlign.center, style: TextStyle(color: mut, fontSize: 13)),
         actionsAlignment: MainAxisAlignment.center,
-        actions: [ElevatedButton(onPressed: () { Navigator.pop(context); _startWatchingAds(); }, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A32)), child: const Text("Watch Videos", style: TextStyle(color: Colors.white)))],
+        actions: [
+          ElevatedButton(
+            onPressed: () { 
+              Navigator.pop(context); 
+              setState(() {
+                freeTimeRemaining = 3600; // နောက်ထပ် ၁ နာရီ ထပ်ပေးမယ်
+              });
+              _connectVpn(); 
+            }, 
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF8A32)), 
+            child: const Text("Get 1 Hour", style: TextStyle(color: Colors.white))
+          )
+        ],
       );
     });
   }
 
-  Future<bool> _showRewardedAd() async {
-    final completer = Completer<bool>();
-    try {
-      await startAppSdk.loadRewardedVideoAd(
-        onAdNotDisplayed: () { if (!completer.isCompleted) completer.complete(false); },
-        onAdHidden: () { if (!completer.isCompleted) completer.complete(false); },
-        onVideoCompleted: () { if (!completer.isCompleted) completer.complete(true); },
-      ).then((ad) {
-        if (ad != null) {
-          ad.show().catchError((e) { if (!completer.isCompleted) completer.complete(false); });
-        } else { if (!completer.isCompleted) completer.complete(false); }
-      }).onError((error, stackTrace) { if (!completer.isCompleted) completer.complete(false); });
-    } catch (e) { if (!completer.isCompleted) completer.complete(false); }
-    return completer.future;
+  void _showSnack(String msg) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
-
-  Future<void> _startWatchingAds() async {
-    setState(() => isConnecting = true); adsWatched = 0;
-    final firstOk = await _showRewardedAd();
-    if (firstOk && mounted) setState(() => adsWatched = 1);
-    if (adsWatched >= 1) {
-      final secondOk = await _showRewardedAd();
-      if (secondOk && mounted) setState(() => adsWatched = 2);
-    }
-    if (adsWatched >= 2) {
-      if (mounted) { setState(() { isConnecting = false; freeTimeRemaining = 300; adsWatched = 0; }); _connectVpn(); _showSnack('Success! You got free time.'); }
-    } else {
-      if (mounted) { setState(() { isConnecting = false; isConnected = false; }); _glitch.stop(); _showSnack('You need to watch both videos completely.'); }
-    }
-  }
-
-  void _showSnack(String msg) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg))); }
 
   Future<void> _fetchPing() async {
-    try { final delay = await _mgr.v2ray.getConnectedServerDelay(); if (mounted) setState(() => ping = delay); } catch (_) {}
+    try {
+      final delay = await _mgr.v2ray.getConnectedServerDelay();
+      if (mounted) setState(() => ping = delay);
+    } catch (_) {}
   }
 
   @override
-  void dispose() { _spin.dispose(); _glitch.dispose(); _timer?.cancel(); super.dispose(); }
+  void dispose() {
+    _spin.dispose(); _glitch.dispose(); _timer?.cancel(); super.dispose();
+  }
 
   Future<void> _connectVpn() async {
     if (isConnecting) return;
     setState(() => isConnecting = true);
     try {
       final ready = await _mgr.ensureInitialized();
-      if (!ready) { if (mounted) { setState(() => isConnecting = false); _showSnack('VPN engine init failed.'); } return; }
+      if (!ready) { 
+        if (mounted) { setState(() => isConnecting = false); _showSnack('VPN engine init failed.'); } 
+        return; 
+      }
+      
       bool? permissionGranted = await _mgr.v2ray.requestPermission();
-      if (permissionGranted != true) { if (mounted) { setState(() => isConnecting = false); _showSnack('VPN permission denied.'); } return; }
+      if (permissionGranted != true) { 
+        if (mounted) { setState(() => isConnecting = false); _showSnack('VPN permission denied.'); } 
+        return; 
+      }
+      
       final link = widget.selectedServer.vlessLink.trim();
       final parser = V2ray.parseFromURL(link);
-      await _mgr.v2ray.startV2Ray(remark: parser.remark.isNotEmpty ? parser.remark : "CX VPN", config: parser.getFullConfiguration(), proxyOnly: false);
+      
+      await _mgr.v2ray.startV2Ray(
+        remark: parser.remark.isNotEmpty ? parser.remark : "CX VPN", 
+        config: parser.getFullConfiguration(), 
+        proxyOnly: false
+      );
     } catch (e) {
-      if (mounted) { setState(() { isConnecting = false; isConnected = false; }); _glitch.stop(); _showSnack('Connection failed: $e'); }
+      if (mounted) { 
+        setState(() { isConnecting = false; isConnected = false; }); 
+        _glitch.stop(); 
+        _showSnack('Connection failed: $e'); 
+      }
     }
   }
 
   Future<void> connect() async {
     if (isConnecting) return;
     if (isConnected) { await _mgr.v2ray.stopV2Ray(); return; }
-    if (freeTimeRemaining <= 0) { _showWatchAdDialog(); return; }
+    if (freeTimeRemaining <= 0) { _showTimeExpiredDialog(); return; }
     await _connectVpn();
   }
 
@@ -377,11 +437,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     Color con = d ? const Color(0xFF5DE2A0) : const Color(0xFF16A34A);
 
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(), padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120),
+      physics: const BouncingScrollPhysics(), 
+      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           RichText(text: TextSpan(text: 'CX ', style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: txt, letterSpacing: -1.2), children: const [TextSpan(text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32)))])),
-          Row(children: [GestureDetector(onTap: widget.toggle, child: _icon(d ? Icons.wb_sunny_outlined : Icons.nightlight_round, d)), const SizedBox(width: 8), _icon(Icons.settings, d)]),
+          Row(children: [
+            GestureDetector(onTap: widget.toggle, child: _icon(d ? Icons.wb_sunny_outlined : Icons.nightlight_round, d)), 
+            const SizedBox(width: 8), 
+            _icon(Icons.settings, d)
+          ]),
         ]),
         const SizedBox(height: 34),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -460,6 +525,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   );
 }
 
+// ============================================================
+// SERVERS PAGE
+// ============================================================
 class ServersPage extends StatelessWidget {
   final bool isDark;
   final List<ServerModel> servers;
@@ -494,6 +562,9 @@ class ServersPage extends StatelessWidget {
   }
 }
 
+// ============================================================
+// SETTINGS PAGE
+// ============================================================
 class SettingsPage extends StatefulWidget {
   final bool isDark;
   final VoidCallback toggle;
@@ -531,6 +602,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
+// ============================================================
+// PREMIUM PAGE
+// ============================================================
 class PremiumPage extends StatelessWidget {
   const PremiumPage({super.key});
   @override
@@ -539,6 +613,9 @@ class PremiumPage extends StatelessWidget {
   }
 }
 
+// ============================================================
+// SKY BACKGROUND & PAINTERS
+// ============================================================
 class SkyBackground extends StatefulWidget {
   final bool isDark;
   const SkyBackground({super.key, required this.isDark});
