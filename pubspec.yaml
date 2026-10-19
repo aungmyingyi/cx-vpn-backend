@@ -4,12 +4,12 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '^3.13.0'  # <--- ဒီလိုင်းကို အရင်ဆုံး ဒီလိုပြောင်းပါ
+  sdk: '>=3.0.0 <4.0.0' # သင့် Flutter SDK နဲ့ ကိုက်ညီအောင် ပြင်ထားပါတယ်
 
 dependencies:
   flutter:
     sdk: flutter
-  flutter_v2ray_client: ^3.6.1 
+  flutter_v2ray_client: ^3.5.0  # <--- 3.6.1 မှာ Error တက်နေလို့ 3.5.0 ကို ပြောင်းထားပါတယ်
   http: ^1.1.0
   startapp_sdk: ^1.0.1
 
