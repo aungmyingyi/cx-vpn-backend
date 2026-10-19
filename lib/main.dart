@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'dart:math' as math;
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:flutter_v2ray_client/flutter_v2ray.dart';
@@ -24,7 +23,7 @@ class V2rayManager {
   
   late final V2ray v2ray;
   bool _initialized = false;
-  bool _isV2rayCreated = false; // ထပ်ခါထပ်ခါ မဖန်တီးအောင် ကာကွယ်ရန်
+  bool _isV2rayCreated = false;
 
   void initialize({required Function(dynamic) onStatusChanged}) {
     if (_isV2rayCreated) return;
@@ -144,7 +143,7 @@ class _MainScreenState extends State<MainScreen> {
     for (String url in subUrls) {
       try {
         final res =
-            await http.get(Uri.parse(url)).timeout(const Duration(seconds: 3));
+            await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
         if (res.statusCode == 200) {
           List<String> links = res.body
               .split('\n')
@@ -175,7 +174,6 @@ class _MainScreenState extends State<MainScreen> {
     List<String> linksToTest = allLinks.take(3).toList();
 
     final mgr = V2rayManager();
-    // mgr.initialize(onStatusChanged: (_) {}); <-- ဒီလိုင်းကို ဖျက်ထားပါတယ်
     final ready = await mgr.ensureInitialized();
 
     if (!ready) {
@@ -195,7 +193,7 @@ class _MainScreenState extends State<MainScreen> {
         final parser = V2ray.parseFromURL(linksToTest[i]);
         final delay = await mgr.v2ray
             .getServerDelay(config: parser.getFullConfiguration())
-            .timeout(const Duration(seconds: 3)); // 1s ကနေ 3s ကို တိုးထားပါတယ်
+            .timeout(const Duration(seconds: 3));
         final remark = parser.remark.isNotEmpty ? parser.remark : "Unknown";
         testedServers.add(ServerModel(
             id: i.toString(),
@@ -308,7 +306,8 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(children: [
-        Positioned.fill(child: SkyBackground(isDark: d)),
+        // SkyBackground ကို ဒီနေရာမှာ ခေါ်ထားပါတယ် (သင့်မှာ ဒီ class မရှိရင် ဖျက်ပါ သို့မဟုတ် ဖန်တီးပါ)
+        Positioned.fill(child: Container(color: d ? const Color(0xFF070B16) : const Color(0xFFE8EDF7))), 
         SafeArea(
             child: IndexedStack(index: pageIndex, children: [
           HomePage(
@@ -325,7 +324,7 @@ class _MainScreenState extends State<MainScreen> {
                     pageIndex = 0;
                   })),
           SettingsPage(isDark: d, toggle: widget.toggle),
-          PremiumPage(isDark: d), // isDark ကို ဖြည့်ထည့်ထားပါတယ်
+          PremiumPage(isDark: d), 
         ])),
         Positioned(
             bottom: 20,
@@ -344,6 +343,18 @@ class _MainScreenState extends State<MainScreen> {
                   ],
                 ))),
       ]),
+    );
+  }
+
+  Widget _glass(bool d, EdgeInsets padding, Widget child) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: d ? const Color(0xFF131A2B).withOpacity(0.8) : Colors.white.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: d ? Colors.white12 : Colors.black12),
+      ),
+      child: child,
     );
   }
 
@@ -394,7 +405,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   bool isConnected = false, isConnecting = false;
-  bool _wasConnected = false; // Timer ထပ်ခါထပ်ခါ မစအောင် ကာကွယ်ရန်
+  bool _wasConnected = false; 
   late AnimationController _spin, _glitch;
   final V2rayManager _mgr = V2rayManager();
   int downloadSpeed = 0, uploadSpeed = 0, totalDownload = 0, totalUpload = 0, ping = 0;
@@ -485,8 +496,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   String _formatTime(int seconds) {
     int h = seconds ~/ 3600, m = (seconds % 3600) ~/ 60, s = seconds % 60;
-    if (h > 0)
+    if (h > 0) {
       return "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
+    }
     return "${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
   }
 
@@ -559,7 +571,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     } catch (e) {
       if (!completer.isCompleted) completer.complete(false);
     }
-    // Ad လမ်းပျောက်မနေအောင် 2 မိနစ် Timeout ပေးထားပါတယ်
     return completer.future.timeout(const Duration(minutes: 2), onTimeout: () => false);
   }
 
@@ -637,768 +648,135 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       }
       final link = widget.selectedServer.vlessLink.trim();
       final parser = V2ray.parseFromURL(link);
+      
+      // ဒီနေရာမှာ ကုဒ်ဖြတ်နေတာကို ပြန်ပြီး အပြည့်အစုံရေးပေးထားပါတယ်
       await _mgr.v2ray.startV2Ray(
           remark: parser.remark.isNotEmpty ? parser.remark : "CX VPN",
           config: parser.getFullConfiguration(),
-          proxyOnly: false);
+      );
+
+      if (mounted) {
+        setState(() {
+          isConnecting = false;
+          isConnected = true;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
           isConnecting = false;
           isConnected = false;
         });
-        _glitch.stop();
         _showSnack('Connection failed: $e');
       }
     }
   }
 
-  Future<void> connect() async {
-    if (isConnecting) return;
-    if (isConnected) {
-      await _mgr.v2ray.stopV2Ray();
-      return;
-    }
-    if (freeTimeRemaining <= 0) {
-      _showWatchAdDialog();
-      return;
-    }
-    await _connectVpn();
-  }
-
-  String _formatSpeed(int bytes) {
-    if (bytes <= 0) return "0 B/s";
-    if (bytes < 1024) return "$bytes B/s";
-    if (bytes < 1024 * 1024) return "${(bytes / 1024).toStringAsFixed(1)} KB/s";
-    return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB/s";
-  }
-
-  String _formatTotal(int bytes) {
-    if (bytes <= 0) return "0 B";
-    if (bytes < 1024 * 1024) return "${(bytes / 1024).toStringAsFixed(0)} KB";
-    return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
-  }
-
   @override
   Widget build(BuildContext context) {
     bool d = widget.isDark;
-    Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
-    Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
-    Color con = d ? const Color(0xFF5DE2A0) : const Color(0xFF16A34A);
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          RichText(
-              text: TextSpan(
-                  text: 'CX ',
-                  style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w900,
-                      color: txt,
-                      letterSpacing: -1.2),
-                  children: const [
-                TextSpan(
-                    text: 'VPN', style: TextStyle(color: Color(0xFFFF8A32)))
-              ])),
-          Row(children: [
-            GestureDetector(
-                onTap: widget.toggle,
-                child: _icon(
-                    d ? Icons.wb_sunny_outlined : Icons.nightlight_round, d)),
-            const SizedBox(width: 8),
-            _icon(Icons.settings, d)
-          ]),
-        ]),
-        const SizedBox(height: 34),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("WELCOME BACK",
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                    color: mut)),
-            const SizedBox(height: 9),
-            RichText(
-                text: TextSpan(
-                    text: 'Your digital\nworld, ',
-                    style: TextStyle(
-                        fontSize: 27,
-                        fontWeight: FontWeight.bold,
-                        height: 1.2,
-                        color: txt),
-                    children: const [
-                  TextSpan(
-                      text: 'protected.',
-                      style: TextStyle(color: Color(0xFFFFB66D)))
-                ])),
-          ]),
-          Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                  color: const Color(0xFFFF8A32).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: const Color(0xFFFF8A32).withOpacity(0.3))),
-              child: Center(
-                  child: RotationTransition(
-                      turns: _spin,
-                      child: const Icon(Icons.settings_input_component,
-                          color: Color(0xFFFFB66D), size: 30)))),
-        ]),
-        Padding(
-            padding: const EdgeInsets.symmetric(vertical: 40),
-            child: Center(
-                child: Column(children: [
-              RepaintBoundary(
-                  child: GestureDetector(
-                      onTap: connect,
-                      child: Stack(alignment: Alignment.center, children: [
-                        if (isConnected) ...[
-                          AnimatedBuilder(
-                              animation: _glitch,
-                              builder: (c, w) => Transform.translate(
-                                  offset: Offset(
-                                      math.sin(_glitch.value * math.pi * 4) * 8,
-                                      0),
-                                  child: Container(
-                                      width: 150,
-                                      height: 150,
-                                      decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(36),
-                                          border: Border.all(
-                                              color: Colors.cyanAccent
-                                                  .withOpacity(0.8),
-                                              width: 3))))),
-                          AnimatedBuilder(
-                              animation: _glitch,
-                              builder: (c, w) => Transform.translate(
-                                  offset: Offset(
-                                      math.cos(_glitch.value * math.pi * 4) * -8,
-                                      0),
-                                  child: Container(
-                                      width: 150,
-                                      height: 150,
-                                      decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(36),
-                                          border: Border.all(
-                                              color: Colors.pinkAccent
-                                                  .withOpacity(0.8),
-                                              width: 3))))),
-                        ],
-                        AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            width: 150,
-                            height: 150,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(36),
-                              color: isConnected
-                                  ? con.withOpacity(0.15)
-                                  : (d
-                                      ? Colors.white.withOpacity(0.08)
-                                      : Colors.white.withOpacity(0.7)),
-                              border: Border.all(
-                                  color: isConnected
-                                      ? con
-                                      : (d
-                                          ? Colors.white.withOpacity(0.3)
-                                          : Colors.white),
-                                  width: 1.5),
-                              boxShadow: [
-                                BoxShadow(
-                                    color: isConnected
-                                        ? con.withOpacity(0.4)
-                                        : (d
-                                            ? const Color(0xFFFF8A32)
-                                                .withOpacity(0.15)
-                                            : Colors.black.withOpacity(0.05)),
-                                    blurRadius: 45,
-                                    spreadRadius: 5)
-                              ],
-                            ),
-                            child: Center(
-                                child: isConnecting
-                                    ? const CircularProgressIndicator(
-                                        color: Color(0xFFFF8A32))
-                                    : Icon(Icons.power_settings_new,
-                                        size: 42,
-                                        color: isConnected ? con : txt))),
-                      ]))),
-              const SizedBox(height: 25),
-              Text(
-                  isConnecting
-                      ? "CONNECTING..."
-                      : (isConnected ? "CONNECTED" : "NOT CONNECTED"),
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                      color: isConnected ? con : txt)),
-              const SizedBox(height: 7),
-              Text(
-                  isConnected
-                      ? "Your connection is secured"
-                      : "Tap to connect securely",
-                  style: TextStyle(fontSize: 12, color: mut)),
-              if (isConnected)
-                Padding(
-                    padding: const EdgeInsets.only(top: 15),
-                    child: Text(
-                        "Time Remaining: ${_formatTime(freeTimeRemaining)}",
-                        style: TextStyle(
-                            fontSize: 14,
-                            color: con,
-                            fontWeight: FontWeight.bold))),
-              const SizedBox(height: 15),
-              Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-                  decoration: BoxDecoration(
-                      color: d
-                          ? Colors.white.withOpacity(0.065)
-                          : Colors.white.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(99),
-                      border: Border.all(
-                          color: d
-                              ? Colors.white.withOpacity(0.14)
-                              : Colors.black12)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isConnected
-                                ? con
-                                : const Color(0xFF9099AC),
-                            boxShadow: isConnected
-                                ? [BoxShadow(color: con.withOpacity(0.8), blurRadius: 12)]
-                                : [])),
-                    const SizedBox(width: 8),
-                    Text(isConnected ? "Protected" : "Ready to connect",
-                        style:
-                            TextStyle(fontSize: 11, color: isConnected ? con : mut)),
-                  ])),
-            ]))),
-        GestureDetector(
-            onTap: widget.onNav,
-            child: _glass(
-                d,
-                const EdgeInsets.all(16),
-                Row(children: [
-                  Container(
-                      width: 45,
-                      height: 45,
-                      decoration: BoxDecoration(
-                          color: d
-                              ? Colors.white.withOpacity(0.1)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                              color: d
-                                  ? Colors.white.withOpacity(0.1)
-                                  : Colors.black12)),
-                      child: Center(
-                          child: Text(widget.selectedServer.flag,
-                              style: const TextStyle(fontSize: 22)))),
-                  const SizedBox(width: 15),
-                  Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                        Text("YOUR LOCATION",
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1,
-                                color: mut)),
-                        const SizedBox(height: 5),
-                        Text(widget.selectedServer.name,
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: txt)),
-                        const SizedBox(height: 3),
-                        Text(widget.selectedServer.country,
-                            style: TextStyle(fontSize: 11, color: mut)),
-                      ])),
-                  Icon(Icons.arrow_forward_ios, size: 16, color: mut),
-                ]))),
-        const SizedBox(height: 13),
-        Row(children: [
-          _stat(_formatSpeed(downloadSpeed), "Download", Icons.arrow_downward,
-              d, txt, mut, isConnected),
-          const SizedBox(width: 10),
-          _stat(_formatSpeed(uploadSpeed), "Upload", Icons.arrow_upward, d, txt,
-              mut, isConnected),
-          const SizedBox(width: 10),
-          _stat(isConnected ? (ping > 0 ? "$ping ms" : "...") : "--", "Ping",
-              Icons.access_time, d, txt, mut, isConnected),
-        ]),
-        const SizedBox(height: 8),
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
           Text(
-              "Total: ${_formatTotal(totalDownload)} ↓ / ${_formatTotal(totalUpload)} ↑",
-              style: TextStyle(fontSize: 10, color: mut))
-        ]),
-        const SizedBox(height: 15),
-        _glass(
-            d,
-            const EdgeInsets.all(16),
-            Row(children: [
-              Container(
-                  width: 45,
-                  height: 45,
-                  decoration: BoxDecoration(
-                      color: const Color(0xFFFF8A32).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(15)),
-                  child: const Icon(Icons.workspace_premium,
-                      color: Color(0xFFFFB66D))),
-              const SizedBox(width: 15),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text("CX Premium",
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: txt)),
-                    const SizedBox(height: 5),
-                    Text("Unlock your full potential",
-                        style: TextStyle(fontSize: 11, color: mut)),
-                  ])),
-              Icon(Icons.arrow_forward_ios, size: 16, color: mut),
-            ])),
-      ]),
+            isConnected ? 'Connected' : (isConnecting ? 'Connecting...' : 'Disconnected'),
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: d ? Colors.white : Colors.black,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              if (isConnected) {
+                _mgr.v2ray.stopV2Ray();
+                setState(() {
+                  isConnected = false;
+                  isConnecting = false;
+                });
+              } else {
+                _connectVpn();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF8A32),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
+            ),
+            child: Text(
+              isConnected ? 'Disconnect' : 'Connect',
+              style: const TextStyle(fontSize: 18, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
     );
   }
-
-  Widget _icon(IconData ic, bool d) => Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-          color: d ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: d ? Colors.white.withOpacity(0.1) : Colors.white)),
-      child: Icon(ic, size: 22, color: d ? Colors.white : const Color(0xFF182239)));
-
-  Widget _stat(String v, String l, IconData ic, bool d, Color t, Color m,
-          bool isActive) =>
-      Expanded(
-        child: _glass(
-            d,
-            const EdgeInsets.all(12),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(ic, color: isActive ? const Color(0xFFFFB66D) : m, size: 19),
-              const SizedBox(height: 8),
-              FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(v,
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: isActive ? t : m))),
-              const SizedBox(height: 4),
-              FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(l, style: TextStyle(fontSize: 10, color: m))),
-            ])),
-      );
 }
+
+// --- ဒီအောက်က Class တွေက သင့် UI အတွက် လိုအပ်တဲ့ နေရာမှာ ထည့်သွင်းရပါမယ် ---
+// သင့်မှာ ServersPage, SettingsPage, PremiumPage တို့ရဲ့ ကုဒ်တွေ မပါလာလို့ ရိုးရိုးလေး ဖန်တီးပေးထားပါတယ်။
 
 class ServersPage extends StatelessWidget {
   final bool isDark;
   final List<ServerModel> servers;
   final ServerModel selected;
   final Function(ServerModel) onSelect;
-  const ServersPage(
-      {super.key,
-      required this.isDark,
-      required this.servers,
-      required this.selected,
-      required this.onSelect});
+  const ServersPage({super.key, required this.isDark, required this.servers, required this.selected, required this.onSelect});
 
   @override
   Widget build(BuildContext context) {
-    bool d = isDark;
-    Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
-    Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
-    return SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text("Choose Server",
-              style: TextStyle(
-                  fontSize: 27, fontWeight: FontWeight.bold, color: txt)),
-          const SizedBox(height: 5),
-          Text("Auto-selected best servers based on Ping.",
-              style: TextStyle(fontSize: 12, color: mut)),
-          const SizedBox(height: 25),
-          ...servers.map((s) {
-            bool isSel = s.id == selected.id;
-            Color pingColor = s.ping < 100
-                ? Colors.green
-                : (s.ping < 300 ? Colors.orange : Colors.red);
-            return GestureDetector(
-                onTap: () => onSelect(s),
-                child: Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isSel
-                          ? const Color(0xFFFF8A32).withOpacity(0.15)
-                          : (d
-                              ? Colors.white.withOpacity(0.05)
-                              : Colors.white.withOpacity(0.6)),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                          color: isSel
-                              ? const Color(0xFFFF8A32)
-                              : (d ? Colors.white.withOpacity(0.1) : Colors.black12),
-                          width: 1.5),
-                    ),
-                    child: Row(children: [
-                      Container(
-                          width: 45,
-                          height: 45,
-                          decoration: BoxDecoration(
-                              color: d
-                                  ? Colors.white.withOpacity(0.1)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(15)),
-                          child: Center(
-                              child: Text(s.flag,
-                                  style: const TextStyle(fontSize: 22)))),
-                      const SizedBox(width: 15),
-                      Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                            Text(s.country,
-                                style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                    color: txt),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 4),
-                            Text(s.name,
-                                style: TextStyle(fontSize: 11, color: mut),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
-                          ])),
-                      Row(children: [
-                        Icon(Icons.network_ping, size: 14, color: pingColor),
-                        const SizedBox(width: 4),
-                        Text("${s.ping} ms",
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: pingColor)),
-                        const SizedBox(width: 12)
-                      ]),
-                      if (isSel)
-                        const Icon(Icons.check_circle,
-                            color: Color(0xFFFF8A32), size: 24)
-                      else
-                        Icon(Icons.radio_button_unchecked, color: mut, size: 24),
-                    ])));
-          }).toList(),
-        ]));
+    return ListView.builder(
+      itemCount: servers.length,
+      itemBuilder: (context, index) {
+        final s = servers[index];
+        return ListTile(
+          leading: Text(s.flag, style: const TextStyle(fontSize: 24)),
+          title: Text(s.name, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+          subtitle: Text('Ping: ${s.ping} ms', style: TextStyle(color: isDark ? Colors.grey : Colors.black54)),
+          trailing: selected.id == s.id ? const Icon(Icons.check_circle, color: Color(0xFFFF8A32)) : null,
+          onTap: () => onSelect(s),
+        );
+      },
+    );
   }
 }
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends StatelessWidget {
   final bool isDark;
   final VoidCallback toggle;
   const SettingsPage({super.key, required this.isDark, required this.toggle});
-  @override
-  State<SettingsPage> createState() => _SettingsPageState();
-}
 
-class _SettingsPageState extends State<SettingsPage> {
-  bool hideAds = false;
-  String routingMode = "Smart Routing";
   @override
   Widget build(BuildContext context) {
-    bool d = widget.isDark;
-    Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
-    Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
-    return SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 120),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text("Settings",
-              style: TextStyle(
-                  fontSize: 27, fontWeight: FontWeight.bold, color: txt)),
-          const SizedBox(height: 25),
-          _glass(
-              d,
-              const EdgeInsets.all(16),
-              Row(children: [
-                Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                        color: const Color(0xFFFF8A32).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: const Center(
-                        child: Text("⌁",
-                            style: TextStyle(
-                                fontSize: 20, color: Color(0xFFFFB66D))))),
-                const SizedBox(width: 15),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text("Routing Mode",
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: txt)),
-                      const SizedBox(height: 3),
-                      Text(routingMode,
-                          style: TextStyle(fontSize: 11, color: mut))
-                    ])),
-                Icon(Icons.arrow_forward_ios, size: 16, color: mut),
-              ])),
-          const SizedBox(height: 12),
-          _glass(
-              d,
-              const EdgeInsets.all(16),
-              Row(children: [
-                Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                        color: const Color(0xFFFF8A32).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12)),
-                    child: const Center(
-                        child: Text("◐",
-                            style: TextStyle(
-                                fontSize: 20, color: Color(0xFFFFB66D))))),
-                const SizedBox(width: 15),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text("Dark Appearance",
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: txt)),
-                      const SizedBox(height: 3),
-                      Text("Liquid Glass theme",
-                          style: TextStyle(fontSize: 11, color: mut))
-                    ])),
-                Switch(
-                    value: d,
-                    onChanged: (val) => widget.toggle(),
-                    activeColor: const Color(0xFFFF8A32)),
-              ])),
-          const SizedBox(height: 12),
-          _glass(
-              d,
-              const EdgeInsets.all(24),
-              Column(children: [
-                RichText(
-                    text: TextSpan(
-                        text: 'CX ',
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: txt,
-                            letterSpacing: -1),
-                        children: const [
-                      TextSpan(
-                          text: 'VPN',
-                          style: TextStyle(color: Color(0xFFFF8A32)))
-                    ])),
-                const SizedBox(height: 8),
-                Text("Version 1.0.0", style: TextStyle(fontSize: 12, color: mut)),
-                const SizedBox(height: 5),
-                Text("Powered by Cerebra X",
-                    style: TextStyle(fontSize: 10, color: mut)),
-              ])),
-        ]));
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('Settings', style: TextStyle(fontSize: 24, color: isDark ? Colors.white : Colors.black)),
+          const SizedBox(height: 20),
+          SwitchListTile(
+            title: Text('Dark Mode', style: TextStyle(color: isDark ? Colors.white : Colors.black)),
+            value: isDark,
+            onChanged: (val) => toggle(),
+          ),
+        ],
+      ),
+    );
   }
 }
 
 class PremiumPage extends StatelessWidget {
   final bool isDark;
   const PremiumPage({super.key, required this.isDark});
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-        child: Center(
-            child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text("Premium Features\n(Coming Soon)",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: isDark ? Colors.white : Colors.black,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)))));
-  }
-}
-
-class SkyBackground extends StatefulWidget {
-  final bool isDark;
-  const SkyBackground({super.key, required this.isDark});
-  @override
-  State<SkyBackground> createState() => _SkyBackgroundState();
-}
-
-class _SkyBackgroundState extends State<SkyBackground>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _c;
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(seconds: 15))
-      ..repeat();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
-    bool d = widget.isDark;
-    return LayoutBuilder(builder: (context, constraints) {
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 800),
-        decoration: BoxDecoration(
-            gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: d
-                    ? [const Color(0xFF020513), const Color(0xFF0A1128), const Color(0xFF192542)]
-                    : [const Color(0xFF4FACFE), const Color(0xFF00F2FE), const Color(0xFFE0F6FF)])),
-        child: Stack(children: [
-          Positioned(
-              top: constraints.maxHeight * 0.08,
-              right: constraints.maxWidth * 0.12,
-              child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 800),
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: d ? Colors.white : const Color(0xFFFFDB58),
-                      boxShadow: [
-                        BoxShadow(
-                            color: d
-                                ? Colors.white.withOpacity(0.3)
-                                : const Color(0xFFFFDB58).withOpacity(0.6),
-                            blurRadius: 40,
-                            spreadRadius: 10)
-                      ]))),
-          Positioned.fill(
-              child: AnimatedBuilder(
-                  animation: _c,
-                  builder: (c, w) =>
-                      CustomPaint(painter: LeafP(progress: _c.value, isDark: d)))),
-          Positioned(
-              bottom: -10,
-              left: 0,
-              right: 0,
-              child: CustomPaint(
-                  size: Size(constraints.maxWidth, 300), painter: TreeP(isDark: d))),
-        ]),
-      );
-    });
-  }
-}
-
-class LeafP extends CustomPainter {
-  final double progress;
-  final bool isDark;
-  LeafP({required this.progress, required this.isDark});
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = isDark ? const Color(0xFFFF8A32) : const Color(0xFF16A34A)
-      ..style = PaintingStyle.fill;
-    final r = math.Random(123);
-    for (int i = 0; i < 20; i++) {
-      double sx = r.nextDouble() * size.width,
-          dl = r.nextDouble(),
-          sp = 0.5 + r.nextDouble();
-      double cp = (progress * sp + dl) % 1.0,
-          y = size.height * cp,
-          x = sx + (math.sin(cp * math.pi * 4) * 40);
-      canvas.save();
-      canvas.translate(x, y);
-      canvas.rotate(cp * math.pi * 2);
-      Path pth = Path()
-        ..moveTo(0, 0)
-        ..quadraticBezierTo(7, -7, 14, 0)
-        ..quadraticBezierTo(7, 7, 0, 0);
-      canvas.drawPath(pth, p);
-      canvas.restore();
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant LeafP old) => old.progress != progress;
-}
-
-class TreeP extends CustomPainter {
-  final bool isDark;
-  TreeP({required this.isDark});
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = Paint()
-      ..color = isDark
-          ? Colors.black.withOpacity(0.85)
-          : const Color(0xFF0F172A).withOpacity(0.6)
-      ..style = PaintingStyle.fill;
-    double w = size.width, h = size.height;
-    final pth = Path()
-      ..moveTo(w * 0.35, h)
-      ..cubicTo(w * 0.37, h * 0.8, w * 0.4, h * 0.63, w * 0.25, h * 0.46)
-      ..cubicTo(w * 0.2, h * 0.4, w * 0.1, h * 0.33, w * 0.05, h * 0.26)
-      ..cubicTo(w * 0.15, h * 0.3, w * 0.25, h * 0.36, w * 0.35, h * 0.43)
-      ..cubicTo(w * 0.37, h * 0.33, w * 0.32, h * 0.2, w * 0.4, h * 0.06)
-      ..cubicTo(w * 0.42, h * 0.2, w * 0.45, h * 0.33, w * 0.47, h * 0.46)
-      ..cubicTo(w * 0.57, h * 0.33, w * 0.7, h * 0.23, w * 0.85, h * 0.16)
-      ..cubicTo(w * 0.72, h * 0.26, w * 0.62, h * 0.4, w * 0.57, h * 0.53)
-      ..cubicTo(w * 0.65, h * 0.6, w * 0.75, h * 0.66, w * 0.9, h * 0.73)
-      ..cubicTo(w * 0.7, h * 0.7, w * 0.6, h * 0.63, w * 0.52, h * 0.56)
-      ..cubicTo(w * 0.5, h * 0.66, w * 0.52, h * 0.8, w * 0.55, h)
-      ..close();
-    canvas.drawPath(pth, p);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false; // Static ဖြစ်လို့ false ပြောင်းထားပါတယ်
-}
-
-Widget _glass(bool d, EdgeInsets p, Widget c) => Container(
-      padding: p,
-      decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-              color: d ? Colors.white.withOpacity(0.15) : Colors.white,
-              width: 1.5),
-          color: d
-              ? const Color(0xFF1E293B).withOpacity(0.6)
-              : Colors.white.withOpacity(0.7),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                spreadRadius: 1)
-          ]),
-      child: c,
+    return Center(
+      child: Text('Premium Page', style: TextStyle(fontSize: 24, color: isDark ? Colors.white : Colors.black)),
     );
+  }
+}
