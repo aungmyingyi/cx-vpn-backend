@@ -41,7 +41,6 @@ class V2rayManager {
       _initialized = true;
       return true;
     } catch (e) {
-      // Error အသေးစိတ်ကို Log တွင် ထုတ်ပြပေးပါမည်
       debugPrint("VPN Initialization Error: $e"); 
       return false;
     }
@@ -650,15 +649,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final link = widget.selectedServer.vlessLink.trim();
       final parser = V2ray.parseFromURL(link);
       
-      await _mgr.v2ray.startV2Ray(
+      // ဒီနေရာမှာ await မပါဘဲ ခေါ်ရပါမယ်
+      _mgr.v2ray.startV2Ray(
           remark: parser.remark.isNotEmpty ? parser.remark : "CX VPN",
           config: parser.getFullConfiguration(),
       );
 
+      // ချိတ်ဆက်မှု အောင်မြင်ဖို့ ခဏစောင့်ပါမယ်
+      await Future.delayed(const Duration(seconds: 2));
+
       if (mounted) {
         setState(() {
           isConnecting = false;
-          isConnected = true;
         });
       }
     } catch (e) {
