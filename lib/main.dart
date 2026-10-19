@@ -306,7 +306,6 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(children: [
-        // SkyBackground ကို ဒီနေရာမှာ ခေါ်ထားပါတယ် (သင့်မှာ ဒီ class မရှိရင် ဖျက်ပါ သို့မဟုတ် ဖန်တီးပါ)
         Positioned.fill(child: Container(color: d ? const Color(0xFF070B16) : const Color(0xFFE8EDF7))), 
         SafeArea(
             child: IndexedStack(index: pageIndex, children: [
@@ -649,7 +648,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       final link = widget.selectedServer.vlessLink.trim();
       final parser = V2ray.parseFromURL(link);
       
-      // ဒီနေရာမှာ ကုဒ်ဖြတ်နေတာကို ပြန်ပြီး အပြည့်အစုံရေးပေးထားပါတယ်
       await _mgr.v2ray.startV2Ray(
           remark: parser.remark.isNotEmpty ? parser.remark : "CX VPN",
           config: parser.getFullConfiguration(),
@@ -717,8 +715,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 }
 
-// --- ဒီအောက်က Class တွေက သင့် UI အတွက် လိုအပ်တဲ့ နေရာမှာ ထည့်သွင်းရပါမယ် ---
-// သင့်မှာ ServersPage, SettingsPage, PremiumPage တို့ရဲ့ ကုဒ်တွေ မပါလာလို့ ရိုးရိုးလေး ဖန်တီးပေးထားပါတယ်။
+// --- အောက်ပါ Class များသည် UI အတွက် လိုအပ်သော ရိုးရှင်းသည့် Page များဖြစ်ပါသည် ---
 
 class ServersPage extends StatelessWidget {
   final bool isDark;
