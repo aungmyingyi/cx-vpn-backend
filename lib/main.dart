@@ -41,6 +41,8 @@ class V2rayManager {
       _initialized = true;
       return true;
     } catch (e) {
+      // Error အသေးစိတ်ကို Log တွင် ထုတ်ပြပေးပါမည်
+      debugPrint("VPN Initialization Error: $e"); 
       return false;
     }
   }
@@ -714,8 +716,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 }
-
-// --- အောက်ပါ Class များသည် UI အတွက် လိုအပ်သော ရိုးရှင်းသည့် Page များဖြစ်ပါသည် ---
 
 class ServersPage extends StatelessWidget {
   final bool isDark;
