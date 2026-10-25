@@ -3,16 +3,9 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:flutter_v2ray_client/flutter_v2ray.dart';
-import 'package:startapp_sdk/startapp.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    final startAppSdk = StartAppSdk();
-    if (kDebugMode) startAppSdk.setTestAdsEnabled(true);
-  } catch (e) {
-    debugPrint("Ad Error: $e");
-  }
   runApp(const CXVpnApp());
 }
 
@@ -107,200 +100,44 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  bool isSplash = true;
   int pageIndex = 0;
-  List<ServerModel> servers = [];
-  ServerModel? selectedServer;
-  bool isLoading = true;
-  String? errorMsg;
-
-  final List<String> subUrls = [
-    "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub1.txt",
-    "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub2.txt",
-    "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Sub3.txt",
+  
+  // စမ်းသပ်ရန် နမူနာ ဆာဗာများ (သင့်ကိုယ်ပိုင် Link တွေ ဒီမှာ ထည့်နိုင်ပါတယ်)
+  List<ServerModel> servers = [
+    ServerModel(
+        id: "1",
+        name: "Singapore Server",
+        country: "Singapore",
+        flag: "🇸🇬",
+        vlessLink: "vless://YOUR_VLESS_LINK_HERE", // သင့် Link ကို အစားထိုးပါ
+        ping: 50),
+    ServerModel(
+        id: "2",
+        name: "US Server",
+        country: "United States",
+        flag: "🇺🇸",
+        vlessLink: "vless://YOUR_VLESS_LINK_HERE", // သင့် Link ကို အစားထိုးပါ
+        ping: 120),
   ];
+  
+  ServerModel? selectedServer;
 
   @override
   void initState() {
     super.initState();
-    _bootstrap();
-  }
-
-  Future<void> _bootstrap() async {
-    final minSplash = Future.delayed(const Duration(milliseconds: 1500));
-    await Future.wait([minSplash, fetchAndTest()]);
-    if (mounted) setState(() => isSplash = false);
-  }
-
-  Future<void> fetchAndTest() async {
-    if (mounted) {
-      setState(() {
-        isLoading = true;
-        errorMsg = null;
-      });
-    }
-    List<String> allLinks = [];
-
-    for (String url in subUrls) {
-      try {
-        final res =
-            await http.get(Uri.parse(url)).timeout(const Duration(seconds: 5));
-        if (res.statusCode == 200) {
-          List<String> links = res.body
-              .split('\n')
-              .map((e) => e.trim())
-              .where((e) =>
-                  e.startsWith('vless://') ||
-                  e.startsWith('vmess://') ||
-                  e.startsWith('trojan://'))
-              .toList();
-          allLinks.addAll(links);
-        }
-      } catch (e) {
-        debugPrint("Fetch err: $e");
-      }
-    }
-
-    if (allLinks.isEmpty) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          errorMsg = "No valid links found. Check internet.";
-        });
-      }
-      return;
-    }
-
-    allLinks.shuffle();
-    List<String> linksToTest = allLinks.take(3).toList();
-
-    final mgr = V2rayManager();
-    final ready = await mgr.ensureInitialized();
-
-    if (!ready) {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          errorMsg = "VPN engine failed.";
-        });
-      }
-      return;
-    }
-
-    List<ServerModel> testedServers = [];
-
-    for (int i = 0; i < linksToTest.length; i++) {
-      try {
-        final parser = V2ray.parseFromURL(linksToTest[i]);
-        final delay = await mgr.v2ray
-            .getServerDelay(config: parser.getFullConfiguration())
-            .timeout(const Duration(seconds: 3));
-        final remark = parser.remark.isNotEmpty ? parser.remark : "Unknown";
-        testedServers.add(ServerModel(
-            id: i.toString(),
-            name: FlagHelper.cleanName(remark),
-            country: remark,
-            flag: FlagHelper.extractFlag(remark),
-            vlessLink: linksToTest[i],
-            ping: delay));
-      } catch (e) {
-        debugPrint("Ping err: $e");
-      }
-    }
-
-    if (testedServers.isNotEmpty) {
-      testedServers.sort((a, b) => a.ping.compareTo(b.ping));
-      if (mounted) {
-        setState(() {
-          servers = testedServers;
-          selectedServer = testedServers.first;
-          isLoading = false;
-        });
-      }
-    } else {
-      try {
-        final parser = V2ray.parseFromURL(linksToTest[0]);
-        final remark =
-            parser.remark.isNotEmpty ? parser.remark : "Default Server";
-        if (mounted) {
-          setState(() {
-            servers = [
-              ServerModel(
-                  id: "0",
-                  name: FlagHelper.cleanName(remark),
-                  country: remark,
-                  flag: FlagHelper.extractFlag(remark),
-                  vlessLink: linksToTest[0],
-                  ping: 999)
-            ];
-            selectedServer = servers.first;
-            isLoading = false;
-          });
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            isLoading = false;
-            errorMsg = "Failed to load servers.";
-          });
-        }
-      }
+    if (servers.isNotEmpty) {
+      selectedServer = servers.first;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     bool d = widget.isDark;
-    if (isSplash || isLoading) {
-      return Scaffold(
-        backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
-        body: Center(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text('CX VPN',
-              style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.bold,
-                  color: d ? Colors.white : Colors.black)),
-          const SizedBox(height: 20),
-          const CircularProgressIndicator(color: Color(0xFFFF8A32)),
-          const SizedBox(height: 20),
-          Text(
-              isLoading && !isSplash
-                  ? 'Finding Best Server...'
-                  : 'POWERED BY CEREBRA X',
-              style: TextStyle(
-                  fontSize: 10, color: d ? Colors.grey : Colors.black54)),
-        ])),
-      );
-    }
-
+    
     if (selectedServer == null) {
       return Scaffold(
         backgroundColor: d ? const Color(0xFF050810) : const Color(0xFFE8EDF7),
-        body: Center(
-            child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.wifi_off,
-                          size: 56,
-                          color: d ? Colors.white54 : Colors.black45),
-                      const SizedBox(height: 16),
-                      Text(errorMsg ?? "No servers available.",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              color: d ? Colors.white : Colors.black)),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                          onPressed: () {
-                            setState(() => isSplash = true);
-                            _bootstrap();
-                          },
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF8A32)),
-                          child: const Text("Retry")),
-                    ]))),
+        body: const Center(child: Text("No servers available.")),
       );
     }
 
@@ -324,7 +161,7 @@ class _MainScreenState extends State<MainScreen> {
                     pageIndex = 0;
                   })),
           SettingsPage(isDark: d, toggle: widget.toggle),
-          PremiumPage(isDark: d), 
+          const PremiumPage(isDark: true), 
         ])),
         Positioned(
             bottom: 20,
@@ -405,17 +242,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   bool isConnected = false, isConnecting = false;
-  bool _wasConnected = false; 
   late AnimationController _spin, _glitch;
   final V2rayManager _mgr = V2rayManager();
   int downloadSpeed = 0, uploadSpeed = 0, totalDownload = 0, totalUpload = 0, ping = 0;
-
-  final StartAppSdk startAppSdk = StartAppSdk();
-  int adsWatched = 0;
-  int freeTimeRemaining = 3600;
-
-  Timer? _timer;
-  bool _timeExpiredDialogShown = false;
 
   @override
   void initState() {
@@ -444,170 +273,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       if (connected) {
         if (!_glitch.isAnimating) _glitch.repeat(reverse: true);
-        if (!_wasConnected) {
-          _fetchPing();
-          _startTimer();
-        }
+        _fetchPing();
       } else {
         _glitch.stop();
-        if (_wasConnected) _stopTimer();
       }
-      _wasConnected = connected;
     } catch (e) {
       debugPrint("Status Error: $e");
-    }
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
-    _timeExpiredDialogShown = false;
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      if (freeTimeRemaining > 0) {
-        setState(() => freeTimeRemaining--);
-      } else {
-        timer.cancel();
-        _handleTimeExpired();
-      }
-    });
-  }
-
-  void _stopTimer() {
-    _timer?.cancel();
-    _timer = null;
-  }
-
-  Future<void> _handleTimeExpired() async {
-    if (_timeExpiredDialogShown) return;
-    _timeExpiredDialogShown = true;
-    try {
-      await _mgr.v2ray.stopV2Ray();
-    } catch (e) {
-      debugPrint("Stop err: $e");
-    }
-    if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _showWatchAdDialog();
-    });
-  }
-
-  String _formatTime(int seconds) {
-    int h = seconds ~/ 3600, m = (seconds % 3600) ~/ 60, s = seconds % 60;
-    if (h > 0) {
-      return "${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
-    }
-    return "${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
-  }
-
-  void _showWatchAdDialog() {
-    showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          bool d = widget.isDark;
-          Color txt = d ? const Color(0xFFF4F7FF) : const Color(0xFF182239);
-          Color mut = d ? const Color(0xFF929DB5) : const Color(0xFF65718A);
-          return AlertDialog(
-            backgroundColor: d ? const Color(0xFF1E293B) : Colors.white,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20)),
-            title: Column(children: [
-              const Icon(Icons.play_circle_fill,
-                  color: Color(0xFFFF8A32), size: 50),
-              const SizedBox(height: 10),
-              Text("Get Free Time",
-                  style: TextStyle(
-                      color: txt, fontWeight: FontWeight.bold))
-            ]),
-            content: Text(
-                "Watch 2 short videos to unlock 1 Hour of free VPN time.\n\n⚠️ If you exit the video early, you won't get the time.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: mut, fontSize: 13)),
-            actionsAlignment: MainAxisAlignment.center,
-            actions: [
-              ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _startWatchingAds();
-                  },
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF8A32)),
-                  child: const Text("Watch Videos",
-                      style: TextStyle(color: Colors.white)))
-            ],
-          );
-        });
-  }
-
-  Future<bool> _showRewardedAd() async {
-    final completer = Completer<bool>();
-    try {
-      await startAppSdk
-          .loadRewardedVideoAd(
-        onAdNotDisplayed: () {
-          if (!completer.isCompleted) completer.complete(false);
-        },
-        onAdHidden: () {
-          if (!completer.isCompleted) completer.complete(false);
-        },
-        onVideoCompleted: () {
-          if (!completer.isCompleted) completer.complete(true);
-        },
-      )
-          .then((ad) {
-        if (ad != null) {
-          ad.show().catchError((e) {
-            if (!completer.isCompleted) completer.complete(false);
-          });
-        } else {
-          if (!completer.isCompleted) completer.complete(false);
-        }
-      }).onError((error, stackTrace) {
-        if (!completer.isCompleted) completer.complete(false);
-      });
-    } catch (e) {
-      if (!completer.isCompleted) completer.complete(false);
-    }
-    return completer.future.timeout(const Duration(minutes: 2), onTimeout: () => false);
-  }
-
-  Future<void> _startWatchingAds() async {
-    setState(() => isConnecting = true);
-    adsWatched = 0;
-    final firstOk = await _showRewardedAd();
-    if (firstOk && mounted) setState(() => adsWatched = 1);
-    if (adsWatched >= 1) {
-      final secondOk = await _showRewardedAd();
-      if (secondOk && mounted) setState(() => adsWatched = 2);
-    }
-    if (adsWatched >= 2) {
-      if (mounted) {
-        setState(() {
-          isConnecting = false;
-          freeTimeRemaining = 3600;
-          adsWatched = 0;
-        });
-        _connectVpn();
-        _showSnack('Success! You got 1 hour of free time.');
-      }
-    } else {
-      if (mounted) {
-        setState(() {
-          isConnecting = false;
-          isConnected = false;
-        });
-        _glitch.stop();
-        _showSnack('You need to watch both videos completely.');
-      }
-    }
-  }
-
-  void _showSnack(String msg) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     }
   }
 
@@ -622,7 +293,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void dispose() {
     _spin.dispose();
     _glitch.dispose();
-    _timer?.cancel();
     super.dispose();
   }
 
@@ -647,15 +317,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         return;
       }
       final link = widget.selectedServer.vlessLink.trim();
+      
+      // Link မရှိရင် Error ပြမယ်
+      if (link.contains("YOUR_VLESS_LINK_HERE") || link.isEmpty) {
+         if (mounted) {
+          setState(() => isConnecting = false);
+          _showSnack('Please add a valid VLESS link in main.dart');
+        }
+        return;
+      }
+
       final parser = V2ray.parseFromURL(link);
       
-      // ဒီနေရာမှာ await မပါဘဲ ခေါ်ရပါမယ်
       _mgr.v2ray.startV2Ray(
           remark: parser.remark.isNotEmpty ? parser.remark : "CX VPN",
           config: parser.getFullConfiguration(),
       );
 
-      // ချိတ်ဆက်မှု အောင်မြင်ဖို့ ခဏစောင့်ပါမယ်
       await Future.delayed(const Duration(seconds: 2));
 
       if (mounted) {
@@ -674,6 +352,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
   }
 
+  void _showSnack(String msg) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     bool d = widget.isDark;
@@ -681,15 +365,23 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // လက်ရှိ ရွေးချယ်ထားသော ဆာဗာ
+          Text(
+            '${widget.selectedServer.flag} ${widget.selectedServer.name}',
+            style: TextStyle(fontSize: 18, color: d ? Colors.grey : Colors.black54),
+          ),
+          const SizedBox(height: 30),
           Text(
             isConnected ? 'Connected' : (isConnecting ? 'Connecting...' : 'Disconnected'),
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
-              color: d ? Colors.white : Colors.black,
+              color: isConnected ? Colors.green : (d ? Colors.white : Colors.black),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
+          if (isConnected) Text('Ping: $ping ms', style: const TextStyle(color: Colors.grey)),
+          const SizedBox(height: 40),
           ElevatedButton(
             onPressed: () {
               if (isConnected) {
@@ -703,8 +395,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF8A32),
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+              backgroundColor: isConnected ? Colors.redAccent : const Color(0xFFFF8A32),
+              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30)),
             ),
@@ -735,7 +427,6 @@ class ServersPage extends StatelessWidget {
         return ListTile(
           leading: Text(s.flag, style: const TextStyle(fontSize: 24)),
           title: Text(s.name, style: TextStyle(color: isDark ? Colors.white : Colors.black)),
-          subtitle: Text('Ping: ${s.ping} ms', style: TextStyle(color: isDark ? Colors.grey : Colors.black54)),
           trailing: selected.id == s.id ? const Icon(Icons.check_circle, color: Color(0xFFFF8A32)) : null,
           onTap: () => onSelect(s),
         );
