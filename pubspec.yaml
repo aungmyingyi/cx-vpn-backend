@@ -11,7 +11,7 @@ dependencies:
     sdk: flutter
   flutter_v2ray_client: ^3.5.0  
   http: ^1.1.0
-  # startapp_sdk ကို ဖြုတ်လိုက်ပါပြီ
+  shared_preferences: ^2.2.2  # အချက်အလက်တွေ သိမ်းဖို့ ထည့်ထားပါတယ်
 
 flutter:
   uses-material-design: true
